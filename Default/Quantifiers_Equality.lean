@@ -569,13 +569,13 @@ example (a : α) : (∃ x, p x → r) ↔ (∀ x, p x) → r :=
   Iff.intro l_to_r r_to_l
 
 example (a : α) : (∃ x, r → p x) ↔ (r → ∃ x, p x) :=
-  have l_to_r: (∃ x, r → p x) → (r → ∃ x, p x) :=
-    fun h: ∃ x, r → p x =>
+  have : (∃ x, r → p x) → (r → ∃ x, p x) :=
+    fun _: ∃ x, r → p x =>
     fun hr: r =>
-    let ⟨w, (hw: r → p w)⟩ := h
+    let ⟨w, (hw: r → p w)⟩ := ‹∃ x, r → p x›
     have : p w := hw hr
     show ∃ x, p x from ⟨w, this⟩
-  have r_to_l: (r → ∃ x, p x) → (∃ x, r → p x) :=
+  have : (r → ∃ x, p x) → (∃ x, r → p x) :=
     fun h: r → ∃ x, p x =>
     have case_r: r → (∃ x, r → p x) :=
       fun hr: r =>
@@ -591,6 +591,26 @@ example (a : α) : (∃ x, r → p x) ↔ (r → ∃ x, p x) :=
         absurd hr nr
       ⟨a, this⟩
     show (∃ x, r → p x) from byCases case_r case_nr
-  Iff.intro l_to_r r_to_l
+  Iff.intro ‹(∃ x, r → p x) → (r → ∃ x, p x)› ‹(r → ∃ x, p x) → (∃ x, r → p x)›
+
+def even (n : Nat) : Prop :=
+  ∃d, 2 * d = n
+
+def prime (n : Nat) : Prop :=
+  ∀ d, (d > 1 ∧ d ∣ n → d = n)
+
+def infinitely_many_primes : Prop :=
+  ∀ d, ∃ p, p > d ∧ prime p
+
+def Fermat_prime (n : Nat) : Prop := sorry
+
+def infinitely_many_Fermat_primes : Prop := sorry
+
+def goldbach_conjecture : Prop := sorry
+
+def Goldbach's_weak_conjecture : Prop := sorry
+
+def Fermat's_last_theorem : Prop :=
+  ∀ n, (n > 2 → ¬ (∃ x y z: Nat, x ^ n + y ^ n = z ^ n))
 
 end Ex_exercises

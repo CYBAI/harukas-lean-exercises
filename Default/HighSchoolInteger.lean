@@ -161,6 +161,10 @@ lemma add_one_of_le_lt {n : Nat} {m : Nat} : n < m + 1 → n ≤ m := by
   | inl h' => exact Or.inl h'
   | inr h' => exact Or.inr h'
 
+example (n : Nat) : n > 0 → n ≥ 1 := by
+  intro h
+  exact Nat.succ_le_of_lt h
+
 lemma lemma2 {a: Int} {b: Int} {n: Nat}
   : a ^ n - b ^ n = (a - b) * (∑ i in Finset.range n, a ^ (n - i - 1) * b ^ i) := by
   symm
@@ -248,7 +252,22 @@ lemma lemma2 {a: Int} {b: Int} {n: Nat}
             . apply Nat.le_iff_lt_or_eq.mpr
               left
               exact hx'
-          have h2 : a ^ (n - x) = a * a ^ (n - x - 1) := by sorry
+          have h2 : a ^ (n - x) = a * a ^ (n - x - 1) := by
+            have hx'' : 1 ≤ n - x := by
+              have : n - x > 0 := by
+                exact Nat.sub_pos_of_lt hx'
+              have : n - x ≥ 1 := by
+                exact Nat.succ_le_of_lt this
+              exact this
+            calc a ^ (n - x)
+              _ = a ^ (n - x + 0) := by rfl
+              _ = a ^ (n - x + (1 - 1)) := by rfl
+              _ = a ^ (n - x + 1 - 1) := by rfl
+              _ = a ^ (n - x - 1 + 1) := by
+                rw [Nat.sub_add_comm]
+                exact hx''
+              _ = a ^ (n - x - 1) * a := by rw [pow_succ]
+              _ = a * a ^ (n - x - 1) := by rw [mul_comm]
           rw [h1, h2]
           ring
         _ = a * ∑ i ∈ Finset.range n, (a ^ (n - i) * b ^ i - a ^ (n - i - 1) * b ^ (i + 1)) + a * b ^ n - b ^ (n + 1) := by sorry

@@ -270,7 +270,7 @@ lemma lemma2 {a: Int} {b: Int} {n: Nat}
               _ = a * a ^ (n - x - 1) := by rw [mul_comm]
           rw [h1, h2]
           ring
-        _ = a * ∑ i ∈ Finset.range n, (a ^ (n - i) * b ^ i - a ^ (n - i - 1) * b ^ (i + 1)) + a * b ^ n - b ^ (n + 1) := by sorry
+        _ = a * ∑ i ∈ Finset.range n, (a ^ (n - i) * b ^ i - a ^ (n - i - 1) * b ^ (i + 1)) + a * b ^ n - b ^ (n + 1) := by rw [mul_sum]
         _ = a * (a ^ n - b ^ n) + a * b ^ n - b ^ (n + 1) := by rw [hi]
         _ = a ^ (n + 1) - b ^ (n + 1) := by ring
 

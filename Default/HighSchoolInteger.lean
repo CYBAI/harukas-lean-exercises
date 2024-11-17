@@ -212,6 +212,7 @@ lemma lemma2 {a: Int} {b: Int} {n: Nat}
         rw [hl, hr]
       | succ n hi =>
         calc ∑ i ∈ s, (a ^ (n + 1 - i) * b ^ i - a ^ (n + 1 - i - 1) * b ^ (i + 1))
+        -- n + 1 - i - 1 = n - i
         _ = ∑ i ∈ Finset.range (n + 1), (a ^ (n + 1 - i) * b ^ i - a ^ (n - i) * b ^ (i + 1)) := by
           apply Finset.sum_congr rfl
           intro x hx
@@ -225,10 +226,25 @@ lemma lemma2 {a: Int} {b: Int} {n: Nat}
               exact hxn
             _ = n - x := by rw [Nat.add_sub_cancel]
           rw [this]
-        _ = ∑ i ∈ Finset.range n, (a ^ (n + 1 - i) * b ^ i - a ^ (n - i) * b ^ (i + 1)) + a ^ (n + 1 - n) * b ^ n - a ^ (n - n) * b ^ (n + 1) := by sorry
-        _ = ∑ i ∈ Finset.range n, (a ^ (n + 1 - i) * b ^ i - a ^ (n - i) * b ^ (i + 1)) + a ^ 1 * b ^ n - a ^ 0 * b ^ (n + 1) := by sorry
-        _ = ∑ i ∈ Finset.range n, (a ^ (n + 1 - i) * b ^ i - a ^ (n - i) * b ^ (i + 1)) + a * b ^ n - b ^ (n + 1) := by sorry
-        _ = ∑ i ∈ Finset.range n, a * (a ^ (n - i) * b ^ i - a ^ (n - i - 1) * b ^ (i + 1)) + a * b ^ n - b ^ (n + 1) := by sorry
+        -- Finset.range (n + 1) to Finset.range n
+        _ = ∑ i ∈ Finset.range n, (a ^ (n + 1 - i) * b ^ i - a ^ (n - i) * b ^ (i + 1))
+            + a ^ (n + 1 - n) * b ^ n - a ^ (n - n) * b ^ (n + 1) := by
+          rw [Finset.sum_range_succ]
+          ring
+        _ = ∑ i ∈ Finset.range n, (a ^ (n + 1 - i) * b ^ i - a ^ (n - i) * b ^ (i + 1))
+            + a ^ 1 * b ^ n - a ^ 0 * b ^ (n + 1) := by simp
+        _ = ∑ i ∈ Finset.range n, (a ^ (n + 1 - i) * b ^ i - a ^ (n - i) * b ^ (i + 1))
+            + a * b ^ n - b ^ (n + 1) := by simp
+        _ = ∑ i ∈ Finset.range n, a * (a ^ (n - i) * b ^ i - a ^ (n - i - 1) * b ^ (i + 1))
+            + a * b ^ n - b ^ (n + 1) := by
+          rw [Int.add_sub_assoc, Int.add_sub_assoc]
+          apply (Int.add_right_inj (a * b ^ n - b ^ (n + 1))).mpr
+          apply Finset.sum_congr rfl
+          intro x hx
+          have h1 : a ^ (n + 1 - x) = a * (a ^ (n - x)) := by sorry
+          have h2 : a ^ (n - x) = a * a ^ (n - x - 1) := by sorry
+          rw [h1, h2]
+          ring
         _ = a * ∑ i ∈ Finset.range n, (a ^ (n - i) * b ^ i - a ^ (n - i - 1) * b ^ (i + 1)) + a * b ^ n - b ^ (n + 1) := by sorry
         _ = a * (a ^ n - b ^ n) + a * b ^ n - b ^ (n + 1) := by rw [hi]
         _ = a ^ (n + 1) - b ^ (n + 1) := by ring

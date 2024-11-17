@@ -154,6 +154,13 @@ lemma gt_zero_p_to_p_succ (P: Nat → Prop): (∀ n, n > 0 → P n) → (∀ n, 
   apply h
   exact Nat.succ_pos n
 
+lemma add_one_of_le_lt {n : Nat} {m : Nat} : n < m + 1 → n ≤ m := by
+  intro h
+  apply Nat.le_iff_lt_or_eq.mpr
+  cases Nat.lt_or_eq_of_le (Nat.le_of_lt_succ h) with
+  | inl h' => exact Or.inl h'
+  | inr h' => exact Or.inr h'
+
 lemma lemma2 {a: Int} {b: Int} {n: Nat}
   : a ^ n - b ^ n = (a - b) * (∑ i in Finset.range n, a ^ (n - i - 1) * b ^ i) := by
   symm
@@ -169,15 +176,11 @@ lemma lemma2 {a: Int} {b: Int} {n: Nat}
       match hn: n with
       | 0 =>
         simp
-        have hl : ∑ x ∈ s, a * b ^ x - ∑ x ∈ s, b * b ^ x = 0 := by
-          have : s = ∅ := by calc
-            s = Finset.range n := by rfl
-            _ = Finset.range 0 := by rw [hn]
-            _ = ∅ := by rfl
-          rw [this, Finset.sum_empty, Finset.sum_empty]
-          rfl
-        have hr : ∑ x ∈ s, b ^ x - ∑ x ∈ s, b ^ (x + 1) = 0 := by sorry
-        rw [hl, hr]
+        have hs : s = ∅ := by calc
+          s = Finset.range n := by rfl
+          _ = Finset.range 0 := by rw [hn]
+          _ = ∅ := by rfl
+        rw [hs, Finset.sum_empty, Finset.sum_empty, Finset.sum_empty, Finset.sum_empty]
       | k + 1 =>
         rw [Nat.succ_eq_add_one] at hn
         rw [← hn]
@@ -210,12 +213,17 @@ lemma lemma2 {a: Int} {b: Int} {n: Nat}
       | succ n hi =>
         calc ∑ i ∈ s, (a ^ (n + 1 - i) * b ^ i - a ^ (n + 1 - i - 1) * b ^ (i + 1))
         _ = ∑ i ∈ Finset.range (n + 1), (a ^ (n + 1 - i) * b ^ i - a ^ (n - i) * b ^ (i + 1)) := by
-          congr
-          funext i
-          have : n + 1 - i - 1 = n - i := by
-            calc n + 1 - i - 1
-            _ = n - i + 1 - 1 := by sorry
-            _ = n - i := by rw [Nat.add_sub_cancel]
+          apply Finset.sum_congr rfl
+          intro x hx
+          have hxn : x ≤ n := by
+            let hx' : x < n + 1 := Finset.mem_range.mp hx
+            exact add_one_of_le_lt hx'
+          have : n + 1 - x - 1 = n - x := by
+            calc n + 1 - x - 1
+            _ = n - x + 1 - 1 := by
+              rw [Nat.sub_add_comm]
+              exact hxn
+            _ = n - x := by rw [Nat.add_sub_cancel]
           rw [this]
         _ = ∑ i ∈ Finset.range n, (a ^ (n + 1 - i) * b ^ i - a ^ (n - i) * b ^ (i + 1)) + a ^ (n + 1 - n) * b ^ n - a ^ (n - n) * b ^ (n + 1) := by sorry
         _ = ∑ i ∈ Finset.range n, (a ^ (n + 1 - i) * b ^ i - a ^ (n - i) * b ^ (i + 1)) + a ^ 1 * b ^ n - a ^ 0 * b ^ (n + 1) := by sorry

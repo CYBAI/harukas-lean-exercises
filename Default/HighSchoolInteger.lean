@@ -241,7 +241,13 @@ lemma lemma2 {a: Int} {b: Int} {n: Nat}
           apply (Int.add_right_inj (a * b ^ n - b ^ (n + 1))).mpr
           apply Finset.sum_congr rfl
           intro x hx
-          have h1 : a ^ (n + 1 - x) = a * (a ^ (n - x)) := by sorry
+          let hx' : x < n := Finset.mem_range.mp hx
+          have h1 : a ^ (n + 1 - x) = a * (a ^ (n - x)) := by
+            rw [Nat.sub_add_comm]
+            . rw [← Nat.succ_eq_add_one, pow_succ, mul_comm]
+            . apply Nat.le_iff_lt_or_eq.mpr
+              left
+              exact hx'
           have h2 : a ^ (n - x) = a * a ^ (n - x - 1) := by sorry
           rw [h1, h2]
           ring

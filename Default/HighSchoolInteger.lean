@@ -289,39 +289,41 @@ example {n: ℕ} : Nat.Prime (2 ^ n - 1) → Nat.Prime n := by
     have : 1 ≠ 1 := Nat.Prime.ne_one h
     contradiction
   | k + 2 =>
-    sorry
+    let hn : n = k + 2 := by exact hn
+    let hnp : ¬Nat.Prime n := by rw [hn]; exact hnp
+    let m := 2 ^ n - 1
 
-    -- obtain ⟨m, mdvdn, m_ne_1, m_ne_n⟩ := Nat.exists_dvd_of_not_prime n_ge_2 n_not_prime
-    -- have m_ge_2 : 2 ≤ m := by
-    --   apply Nat.le_of_lt
-    --   have m_gt_1 : 1 < m := Nat.lt_of_le_of_ne (Nat.le_of_dvd n_ge_2 mdvdn) m_ne_1.symm
-    --   exact m_gt_1
-    -- have m_lt_n : m < n := Nat.lt_of_le_of_ne (Nat.le_of_dvd n_ge_2 mdvdn) m_ne_n.symm
-    -- let k := n / m
-    -- have k_ge_2 : 2 ≤ k := by
-    --   have n_eq_mk : n = m * k := Nat.mul_div_cancel' mdvdn
-    --   rw [n_eq_mk] at n_ge_2
-    --   have : 2 ≤ m * k := n_ge_2
-    --   have m_ge_1 : 1 ≤ m := Nat.le_of_lt m_ge_2
-    --   exact Nat.le_of_mul_le_mul_left this m_ge_1
-    -- Now, factor 2^n - 1
-    -- have h_factor : 2 ^ n - 1 = (2 ^ m - 1) * (∑ i in Finset.range k, 2 ^ (m * (k - i - 1))) := by
-    --   have geom_sum : ∑ i in Finset.range k, 2 ^ (m * i) = (2 ^ (m * k) - 1) / (2 ^ m - 1) := by
-    --     rw [←Nat.geom_sum_mul]
-    --     rw [Nat.sub_add_cancel (Nat.one_le_pow' _ _ m_ge_2)]
-    --   have : 2 ^ n - 1 = (2 ^ m - 1) * ∑ i in Finset.range k, 2 ^ (m * (k - i - 1)) := by
-    --     rw [←Nat.pow_mul, Nat.mul_comm m k, ←Nat.geom_sum_mul, ←geom_sum]
-    --     ring
-    --   exact this
-    -- -- Show that both factors are greater than 1
-    -- have h2m1_gt1 : 1 < 2 ^ m - 1 := by
-    --   have h2m_ge4 : 4 ≤ 2 ^ m := Nat.pow_le_pow_of_le_right (by decide) m_ge_2
-    --   exact Nat.lt_sub_left_of_add_lt (by norm_num) h2m_ge4
-    -- have sum_gt1 : 1 < ∑ i in Finset.range k, 2 ^ (m * (k - i - 1)) := by
-    --   have : 2 ^ (m * 0) ≤ ∑ i in Finset.range k, 2 ^ (m * (k - i - 1)) := Finset.single_le_sum (λ _ _ => Nat.zero_le _) (Finset.mem_range.mpr k_ge_2)
-    --   have h_pow : 1 < 2 ^ (m * 0) := by
-    --     rw [Nat.mul_zero, Nat.pow_zero]; norm_num
-    --   exact Nat.lt_of_lt_of_le h_pow this
-    -- -- Conclude that 2^n - 1 is not prime
-    -- have : ¬Nat.Prime (2 ^ n - 1) := Nat.not_prime_mul' h2m1_gt1 sum_gt1
-    -- exact this
+    have n_mul_of_nat : ∃d₁ : Nat, ∃d₂ : Nat, d₁ ≠ 1 ∧ d₂ ≠ 1 ∧ n = d₁ * d₂ := by
+      have n2 : 2 ≤ n := by
+        rw [hn]
+        simp
+      let ⟨d₁, ⟨d₂, h⟩ , h2, h3⟩ := Nat.exists_dvd_of_not_prime n2 hnp
+      use d₁, d₂
+      constructor
+      . exact h2
+      . constructor
+        . exact sorry
+        . exact h
+
+    have m_mul_of_nat : ∃e₁ : Nat, ∃e₂ : Nat, e₁ ≠ 1 ∧ e₂ ≠ 1 ∧ m = e₁ * e₂ := by
+      let ⟨d₁, d₂, hd₁, hd₂, hd⟩ := n_mul_of_nat
+      let e₁ := 2 ^ d₁ - 1
+      let e₂ := ∑ i in Finset.range d₂, (2 ^ d₁) ^ (d₂ - i - 1) * 1 ^ i
+      have : m = e₁ * e₂ := by calc 2 ^ n - 1
+        _ = 2 ^ (d₁ * d₂) - 1 := by rw [hd]
+        _ = (2 ^ d₁) ^ d₂ - 1 := by sorry
+        _ = (2 ^ d₁) ^ d₂ - 1 ^ d₂ := by simp
+        _ = (2 ^ d₁ - 1) * (∑ i in Finset.range d₂, (2 ^ d₁) ^ (d₂ - i - 1) * 1 ^ i) := by
+          -- exact @lemma2 (2 ^ d₁: Int) (1: Int) (d₂: Nat)
+          sorry
+        _ = e₁ * e₂ := by rfl
+      have : e₁ ≠ 1 := by sorry
+      have : e₂ ≠ 1 := by sorry
+      use e₁, e₂
+
+    have : ¬Nat.Prime (2 ^ (k + 2) - 1) := by
+      let ⟨e₁, e₂, he₁, he₂, he⟩ := m_mul_of_nat
+      -- have hm' := Nat.not_prime_mul
+      sorry
+
+    exact this

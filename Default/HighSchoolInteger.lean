@@ -293,17 +293,32 @@ example {n: ℕ} : Nat.Prime (2 ^ n - 1) → Nat.Prime n := by
     let hnp : ¬Nat.Prime n := by rw [hn]; exact hnp
     let m := 2 ^ n - 1
 
-    have n_mul_of_nat : ∃d₁ : Nat, ∃d₂ : Nat, d₁ ≠ 1 ∧ d₂ ≠ 1 ∧ n = d₁ * d₂ := by
+    have n_mul_of_nat : ∃d₁ : Nat, ∃d₂ : Nat, d₁ > 1 ∧ d₂ > 1 ∧ n = d₁ * d₂ := by
       have n2 : 2 ≤ n := by
         rw [hn]
         simp
       let ⟨d₁, ⟨d₂, h⟩ , h2, h3⟩ := Nat.exists_dvd_of_not_prime n2 hnp
       use d₁, d₂
       constructor
-      . exact h2
+      . show d₁ > 1
+        change 1 < d₁
+        by_contra hd₁
+        have := Nat.not_lt.mp hd₁
+        match hd: d₁ with
+        | 0 =>
+          simp at h
+          rw [h] at n2
+          contradiction
+        | 1 =>
+          contradiction
+        | 2 =>
+          contradiction
       . constructor
-        . exact sorry
-        . exact h
+        -- ⊢ d₂ ≠ 1
+        . show d₂ > 1
+          sorry
+        . show n = d₁ * d₂
+          exact h
 
     have m_mul_of_nat : ∃e₁ : Nat, ∃e₂ : Nat, e₁ ≠ 1 ∧ e₂ ≠ 1 ∧ m = e₁ * e₂ := by
       let ⟨d₁, d₂, hd₁, hd₂, hd⟩ := n_mul_of_nat
@@ -311,13 +326,14 @@ example {n: ℕ} : Nat.Prime (2 ^ n - 1) → Nat.Prime n := by
       let e₂ := ∑ i in Finset.range d₂, (2 ^ d₁) ^ (d₂ - i - 1) * 1 ^ i
       have : m = e₁ * e₂ := by calc 2 ^ n - 1
         _ = 2 ^ (d₁ * d₂) - 1 := by rw [hd]
-        _ = (2 ^ d₁) ^ d₂ - 1 := by sorry
+        _ = (2 ^ d₁) ^ d₂ - 1 := by rw [pow_mul]
         _ = (2 ^ d₁) ^ d₂ - 1 ^ d₂ := by simp
         _ = (2 ^ d₁ - 1) * (∑ i in Finset.range d₂, (2 ^ d₁) ^ (d₂ - i - 1) * 1 ^ i) := by
           -- exact @lemma2 (2 ^ d₁: Int) (1: Int) (d₂: Nat)
           sorry
         _ = e₁ * e₂ := by rfl
-      have : e₁ ≠ 1 := by sorry
+      have : e₁ ≠ 1 := by
+        sorry
       have : e₂ ≠ 1 := by sorry
       use e₁, e₂
 

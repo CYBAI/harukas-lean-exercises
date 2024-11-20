@@ -314,9 +314,20 @@ example {n: ℕ} : Nat.Prime (2 ^ n - 1) → Nat.Prime n := by
         | 2 =>
           contradiction
       . constructor
-        -- ⊢ d₂ ≠ 1
         . show d₂ > 1
-          sorry
+          by_contra hd₂
+          have := Nat.not_lt.mp hd₂
+          match hd: d₂ with
+          | 0 =>
+            simp at h
+            rw [h] at n2
+            contradiction
+          | 1 =>
+            simp at h
+            symm at h
+            contradiction
+          | 2 =>
+            contradiction
         . show n = d₁ * d₂
           exact h
 

@@ -132,9 +132,6 @@ lemma sub_add_cancel_one {n: Nat} (h: n > 0) : n - 1 + 1 = n := by
   have h3: 1 ≤ n := Nat.succ_le_of_lt h
   exact Nat.sub_add_cancel h3
 
--- i ≤ 0 - 1 → 1 ≤ 0 - i
--- i ≤ 0 → 1 → 1 ≤ 0
-
 lemma lemma1 {n : Nat} {i : Nat} (h0 : n > 0) : i ≤ n - 1 → 1 ≤ n - i := by
   intro h
   have : i + 1 ≤ n - 1 + 1 :=
@@ -274,6 +271,10 @@ lemma lemma2 {a: Int} {b: Int} {n: Nat}
         _ = a * (a ^ n - b ^ n) + a * b ^ n - b ^ (n + 1) := by rw [hi]
         _ = a ^ (n + 1) - b ^ (n + 1) := by ring
 
+lemma toNat_eq_toNat {a : Int} {b : Int}: a = b → a.toNat = b.toNat := by
+  intro h
+  rw [h]
+
 example {n: ℕ} : Nat.Prime (2 ^ n - 1) → Nat.Prime n := by
   contrapose!
   intro hnp
@@ -335,17 +336,32 @@ example {n: ℕ} : Nat.Prime (2 ^ n - 1) → Nat.Prime n := by
       let ⟨d₁, d₂, hd₁, hd₂, hd⟩ := n_mul_of_nat
       let e₁ := 2 ^ d₁ - 1
       let e₂ := ∑ i in Finset.range d₂, (2 ^ d₁) ^ (d₂ - i - 1) * 1 ^ i
-      have : m = e₁ * e₂ := by calc 2 ^ n - 1
+
+      -- lemma2 が整数に関する定理なので整数にキャストする
+      let e₁': Int := 2 ^ d₁ - 1
+      let e₂': Int := ∑ i in Finset.range d₂, (2 ^ d₁) ^ (d₂ - i - 1) * 1 ^ i
+      have : m = e₁' * e₂' := by calc Int.ofNat (2 ^ n - 1)
+        _ = 2 ^ n - 1 := by simp
         _ = 2 ^ (d₁ * d₂) - 1 := by rw [hd]
         _ = (2 ^ d₁) ^ d₂ - 1 := by rw [pow_mul]
         _ = (2 ^ d₁) ^ d₂ - 1 ^ d₂ := by simp
-        _ = (2 ^ d₁ - 1) * (∑ i in Finset.range d₂, (2 ^ d₁) ^ (d₂ - i - 1) * 1 ^ i) := by
-          -- exact @lemma2 (2 ^ d₁: Int) (1: Int) (d₂: Nat)
-          sorry
-        _ = e₁ * e₂ := by rfl
-      have : e₁ ≠ 1 := by
+        _ = (2 ^ d₁ - 1) * (∑ i in Finset.range d₂, (2 ^ d₁) ^ (d₂ - i - 1) * 1 ^ i) := by exact @lemma2 (2 ^ d₁) 1 d₂
+        _ = e₁' * e₂' := by rfl
+
+      have he₁ : e₁' = ↑e₁ := by
+        have : e₁ = 2 ^ d₁ - 1 := by rfl
+        rw [this]
+        simp
+      have he₂ : e₂' = ↑e₂ := by
+        have : e₂' = ↑(∑ i in Finset.range d₂, (2 ^ d₁) ^ (d₂ - i - 1) * 1 ^ i) := by rfl
+        rw [this]
+        have : e₂ = ∑ i in Finset.range d₂, (2 ^ d₁) ^ (d₂ - i - 1) * 1 ^ i := by rfl
+        rw [this]
         sorry
+      have : m = e₁ * e₂ := by sorry
+      have : e₁ ≠ 1 := by sorry
       have : e₂ ≠ 1 := by sorry
+
       use e₁, e₂
 
     have : ¬Nat.Prime (2 ^ (k + 2) - 1) := by

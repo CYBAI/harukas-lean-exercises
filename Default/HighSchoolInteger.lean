@@ -275,6 +275,41 @@ lemma toNat_eq_toNat {a : Int} {b : Int}: a = b → a.toNat = b.toNat := by
   intro h
   rw [h]
 
+lemma mul_of_succ_neg_succ (n : Nat) (m : Nat) : ∃ k: Nat, Int.ofNat (m + 1) * Int.negSucc n = Int.negSucc k := by
+  use m * n + m + n
+  calc Int.ofNat (m + 1) * Int.negSucc n
+    _ = -((↑m + 1) * (↑n + 1)) := by rfl
+    _ = -((↑m * ↑n + ↑m + ↑n) + 1) := by ring
+
+lemma toNat_mul_dist {a : Int} {b : Int} (ha : a ≥ 0) : (a * b).toNat = a.toNat * b.toNat := by
+  cases a with
+  | ofNat m =>
+    cases b with
+    | ofNat n =>
+      simp
+      rfl
+    | negSucc n =>
+      match m with
+      | 0 =>
+        simp
+      | Nat.succ m' =>
+        let ⟨k, hk⟩ := mul_of_succ_neg_succ n m'
+        rw [hk]
+        simp
+  | negSucc m =>
+    match b with
+    | 0 =>
+      simp
+    | Nat.succ b' =>
+      let ⟨k, hk⟩ := mul_of_succ_neg_succ m b'
+      have : Int.negSucc m * ↑b'.succ = Int.negSucc k := by
+        rw [mul_comm]
+        exact hk
+      rw [this]
+      simp
+    | Int.negSucc n =>
+      contradiction
+
 example {n: ℕ} : Nat.Prime (2 ^ n - 1) → Nat.Prime n := by
   contrapose!
   intro hnp
@@ -334,13 +369,11 @@ example {n: ℕ} : Nat.Prime (2 ^ n - 1) → Nat.Prime n := by
 
     have m_mul_of_nat : ∃e₁ : Nat, ∃e₂ : Nat, e₁ ≠ 1 ∧ e₂ ≠ 1 ∧ m = e₁ * e₂ := by
       let ⟨d₁, d₂, hd₁, hd₂, hd⟩ := n_mul_of_nat
-      let e₁ := 2 ^ d₁ - 1
-      let e₂ := ∑ i in Finset.range d₂, (2 ^ d₁) ^ (d₂ - i - 1) * 1 ^ i
 
       -- lemma2 が整数に関する定理なので整数にキャストする
       let e₁': Int := 2 ^ d₁ - 1
       let e₂': Int := ∑ i in Finset.range d₂, (2 ^ d₁) ^ (d₂ - i - 1) * 1 ^ i
-      have : m = e₁' * e₂' := by calc Int.ofNat (2 ^ n - 1)
+      have hm: m = e₁' * e₂' := by calc Int.ofNat (2 ^ n - 1)
         _ = 2 ^ n - 1 := by simp
         _ = 2 ^ (d₁ * d₂) - 1 := by rw [hd]
         _ = (2 ^ d₁) ^ d₂ - 1 := by rw [pow_mul]
@@ -348,17 +381,28 @@ example {n: ℕ} : Nat.Prime (2 ^ n - 1) → Nat.Prime n := by
         _ = (2 ^ d₁ - 1) * (∑ i in Finset.range d₂, (2 ^ d₁) ^ (d₂ - i - 1) * 1 ^ i) := by exact @lemma2 (2 ^ d₁) 1 d₂
         _ = e₁' * e₂' := by rfl
 
-      have he₁ : e₁' = ↑e₁ := by
-        have : e₁ = 2 ^ d₁ - 1 := by rfl
-        rw [this]
-        simp
-      have he₂ : e₂' = ↑e₂ := by
-        have : e₂' = ↑(∑ i in Finset.range d₂, (2 ^ d₁) ^ (d₂ - i - 1) * 1 ^ i) := by rfl
-        rw [this]
-        have : e₂ = ∑ i in Finset.range d₂, (2 ^ d₁) ^ (d₂ - i - 1) * 1 ^ i := by rfl
-        rw [this]
-        sorry
-      have : m = e₁ * e₂ := by sorry
+      let e₁ := e₁'.toNat
+      let e₂ := e₂'.toNat
+      have he₁ : e₁' ≥ 0 := by calc e₁'
+        _ = 2 ^ d₁ - 1 := by rfl
+        _ ≥ 2 ^ 0 - 1 := by
+          apply Int.sub_le_sub_right
+          -- ⊢ 2 ^ 0 ≤ 2 ^ d₁
+          -- 2 が Int になっているので定理を適用できない
+          -- apply Nat.pow_le_pow_of_le
+          -- decide
+          -- simp
+          sorry
+
+        _ ≥ 0 := by sorry
+      have : m = e₁ * e₂ := by
+        calc m
+          _ = Int.toNat ↑m := by exact Int.toNat_natCast m
+          _ = (e₁' * e₂').toNat := by rw [hm]
+          _ = e₁'.toNat * e₂'.toNat := by
+            rw [toNat_mul_dist]
+            exact he₁
+          _ = e₁ * e₂ := by rfl
       have : e₁ ≠ 1 := by sorry
       have : e₂ ≠ 1 := by sorry
 

@@ -399,6 +399,7 @@ example {n: ℕ} : Nat.Prime (2 ^ n - 1) → Nat.Prime n := by
             exact Int.ofNat_le.mpr this
           exact this
         _ ≥ 0 := by simp
+
       have : m = e₁ * e₂ := by
         calc m
           _ = Int.toNat ↑m := by exact Int.toNat_natCast m
@@ -407,16 +408,42 @@ example {n: ℕ} : Nat.Prime (2 ^ n - 1) → Nat.Prime n := by
             rw [toNat_mul_dist]
             exact he₁
           _ = e₁ * e₂ := by rfl
+
       have : e₁ ≠ 1 := by
         intro he₁_eq_1
-        have hc' : e₁'.natAbs = 1 := by
-          have : e₁ = e₁'.toNat := by rfl
+        have : (0: Int) ≤ 2 ^ d₁ - 1 := by sorry
+        have hd₁_cast: ↑(2 ^ d₁ - (1: Int)).toNat = 2 ^ d₁ - (1: Int) := by
+          exact Int.toNat_of_nonneg this
+        have : e₁ = e₁'.toNat := by rfl
+        have : (2 ^ d₁ - (1: Int)).toNat = 1 := by
           rw [he₁_eq_1] at this
-          sorry
-        have : e₁' > 1 := by sorry
-        have : e₁ > 1 := by sorry
-        rw [he₁_eq_1] at this
+          symm at this
+          exact this
+        have : (2 ^ d₁ - (1: Int)).toNat = (1: Int) := by
+          rw [this]
+          rfl
+        have : 2 ^ d₁ - (1: Int) = 1 := by
+          rw [←hd₁_cast]
+          exact this
+        have : 2 ^ d₁ = (2: Int) := by calc
+          (2: Int) ^ d₁ = 2 ^ d₁ - 1 + 1 := by simp
+          _ = 1 + 1 := by rw [this]
+          _ = 2 := by rfl
+        have : 2 ^ d₁ = 2 := by calc
+          2 ^ d₁ = ((2 ^ d₁: Int)).toNat := by
+            have h2 := Int.toNat_ofNat (2 ^ d₁)
+            rw [←h2]
+            simp
+          _ = (2: Int).toNat := by rw [this]
+          _ = 2 := by simp
+        have : d₁ = 1 := by
+          apply @Nat.pow_right_injective 2
+          . rfl
+          . simp
+            exact this
+        rw [this] at hd₁
         contradiction
+
       have : e₂ ≠ 1 := by sorry
 
       use e₁, e₂

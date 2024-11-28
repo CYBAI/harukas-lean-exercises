@@ -387,14 +387,18 @@ example {n: ℕ} : Nat.Prime (2 ^ n - 1) → Nat.Prime n := by
         _ = 2 ^ d₁ - 1 := by rfl
         _ ≥ 2 ^ 0 - 1 := by
           apply Int.sub_le_sub_right
-          -- ⊢ 2 ^ 0 ≤ 2 ^ d₁
-          -- 2 が Int になっているので定理を適用できない
-          -- apply Nat.pow_le_pow_of_le
-          -- decide
-          -- simp
-          sorry
-
-        _ ≥ 0 := by sorry
+          simp
+          have : (@OfNat.ofNat ℤ 2 instOfNat) ^ d₁ = ↑((2 : Nat) ^ d₁) := by calc
+              (@OfNat.ofNat ℤ 2 instOfNat) ^ d₁ = ↑(2: Nat) ^ d₁ := by rfl
+              _ = ↑((2: Nat) ^ d₁) := Eq.symm (Lean.Omega.Int.ofNat_pow 2 d₁)
+          rw [this]
+          have : 1 ≤ 2 ^ d₁ := by
+            apply Nat.one_le_pow
+            decide
+          have : Int.ofNat 1 ≤ Int.ofNat (2 ^ d₁) := by
+            exact Int.ofNat_le.mpr this
+          exact this
+        _ ≥ 0 := by simp
       have : m = e₁ * e₂ := by
         calc m
           _ = Int.toNat ↑m := by exact Int.toNat_natCast m

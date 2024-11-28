@@ -407,14 +407,25 @@ example {n: ℕ} : Nat.Prime (2 ^ n - 1) → Nat.Prime n := by
             rw [toNat_mul_dist]
             exact he₁
           _ = e₁ * e₂ := by rfl
-      have : e₁ ≠ 1 := by sorry
+      have : e₁ ≠ 1 := by
+        intro he₁_eq_1
+        have hc' : e₁'.natAbs = 1 := by
+          have : e₁ = e₁'.toNat := by rfl
+          rw [he₁_eq_1] at this
+          sorry
+        have : e₁' > 1 := by sorry
+        have : e₁ > 1 := by sorry
+        rw [he₁_eq_1] at this
+        contradiction
       have : e₂ ≠ 1 := by sorry
 
       use e₁, e₂
 
     have : ¬Nat.Prime (2 ^ (k + 2) - 1) := by
+      rw [← hn]
       let ⟨e₁, e₂, he₁, he₂, he⟩ := m_mul_of_nat
-      -- have hm' := Nat.not_prime_mul
-      sorry
-
+      have : ¬Nat.Prime m := by
+        rw [he]
+        exact Nat.not_prime_mul he₁ he₂
+      exact this
     exact this

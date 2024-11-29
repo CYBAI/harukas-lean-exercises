@@ -459,7 +459,15 @@ example {n: ℕ} : Nat.Prime (2 ^ n - 1) → Nat.Prime n := by
         rw [this] at hd₁
         contradiction
 
-      have : e₂ ≠ 1 := by sorry
+      have : 1 < e₂' := by sorry
+      have : 1 < e₂ := by
+        have hb : 0 < e₂' := by
+          exact Int.lt_trans (by decide) this
+        exact (Int.toNat_lt_toNat hb).mpr this
+      have : e₂ ≠ 1 := by
+        intro he₂_eq_1
+        rw [he₂_eq_1] at this
+        contradiction
 
       use e₁, e₂
 

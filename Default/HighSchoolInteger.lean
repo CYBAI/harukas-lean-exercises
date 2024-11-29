@@ -310,6 +310,10 @@ lemma toNat_mul_dist {a : Int} {b : Int} (ha : a ≥ 0) : (a * b).toNat = a.toNa
     | Int.negSucc n =>
       contradiction
 
+lemma Int_ofNat_pow {a : Nat} {b : Nat} : Int.ofNat a ^ b = Int.ofNat (a ^ b) := by calc
+    Int.ofNat a ^ b = ↑(a: Nat) ^ b := by rfl
+    _ = Int.ofNat (a ^ b) := Eq.symm (Lean.Omega.Int.ofNat_pow a b)
+
 example {n: ℕ} : Nat.Prime (2 ^ n - 1) → Nat.Prime n := by
   contrapose!
   intro hnp
@@ -411,7 +415,18 @@ example {n: ℕ} : Nat.Prime (2 ^ n - 1) → Nat.Prime n := by
 
       have : e₁ ≠ 1 := by
         intro he₁_eq_1
-        have : (0: Int) ≤ 2 ^ d₁ - 1 := by sorry
+        have : (0: Int) ≤ 2 ^ d₁ - 1 := by
+          have : 1 ≤ 2 ^ d₁ := by
+            apply Nat.one_le_pow
+            decide
+          have : Int.ofNat 1 ≤ Int.ofNat (2 ^ d₁) := by
+            exact Int.ofNat_le.mpr this
+          have : Int.ofNat 1 ≤ Int.ofNat 2 ^ d₁ := by
+            rw [Int_ofNat_pow]
+            exact this
+          have : Int.ofNat 0 ≤ Int.ofNat 2 ^ d₁ - Int.ofNat 1 := by
+            exact Int.sub_le_sub_right this 1
+          exact this
         have hd₁_cast: ↑(2 ^ d₁ - (1: Int)).toNat = 2 ^ d₁ - (1: Int) := by
           exact Int.toNat_of_nonneg this
         have : e₁ = e₁'.toNat := by rfl

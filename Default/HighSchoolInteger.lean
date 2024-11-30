@@ -370,7 +370,27 @@ lemma lemma3 {d₁ d₂: Nat} (hd₁ : d₁ > 1) (hd₂ : d₂ > 1)
       simp
       have : ∀x ∈ Finset.range (l + 2),
         ((2: Int) ^ d₁) ^ (l + 2 + 1 - x - 1) = (2 ^ d₁) ^ (l + 2 - x - 1) * 2 ^ d₁ := by
-        sorry
+        intro i hi
+        rw [←pow_succ]
+        have hi_lt : i < l + 2 := Finset.mem_range.mp hi
+        have : l + 2 + 1 - i - 1 = l + 2 - i - 1 + 1 := by
+          rw [Nat.sub_add_comm]
+          . simp
+            show l + 2 - i = l + 2 - i - 1 + 1
+            rw [Nat.sub_add_cancel]
+            have : 0 + i < l + 2 := by
+              simp
+              exact hi_lt
+            have : 0 < l + 2 - i := by
+              exact Nat.lt_sub_of_add_lt this
+            have : 1 < (l + 2 - i).succ := by
+              exact Nat.succ_lt_succ this
+            have : 1 ≤ l + 2 - i := by
+              exact Nat.le_of_lt_succ this
+            exact this
+          . show i ≤ l + 2
+            exact le_of_lt hi_lt
+        rw [this]
       have : ∑ x ∈ Finset.range (l + 2), ((2: Int) ^ d₁) ^ (l + 2 + 1 - x - 1) = ∑ x ∈ Finset.range (l + 2), (2 ^ d₁) ^ (l + 2 - x - 1) * 2 ^ d₁ := by
         apply Finset.sum_congr rfl
         exact this
@@ -379,7 +399,8 @@ lemma lemma3 {d₁ d₂: Nat} (hd₁ : d₁ > 1) (hd₂ : d₂ > 1)
         sorry
       rw [this]
       calc (0: Int)
-        _ < 2 ^ d₁ := by sorry
+        _ < 2 ^ d₁ := by
+          exact int_pow_pos (by decide)
         _ = 2 ^ d₁ * 1 := by simp
         _ < 2 ^ d₁ * ∑ x ∈ Finset.range (l + 2), (2 ^ d₁) ^ (l + 2 - x - 1) := by
           apply Int.mul_lt_mul_of_pos_left

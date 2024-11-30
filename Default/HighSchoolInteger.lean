@@ -314,6 +314,32 @@ lemma Int_ofNat_pow {a : Nat} {b : Nat} : Int.ofNat a ^ b = Int.ofNat (a ^ b) :=
     Int.ofNat a ^ b = ↑(a: Nat) ^ b := by rfl
     _ = Int.ofNat (a ^ b) := Eq.symm (Lean.Omega.Int.ofNat_pow a b)
 
+lemma int_pow_pos {n : Nat} {a : Int}: 0 < a → 0 < a ^ n := by
+  intro ha
+  have ha' : 0 ≤ a := le_of_lt ha
+  have ha_nat : 0 < a.toNat := by
+    have h1: 0 ≤ a.toNat := Int.toNat_le_toNat ha'
+    have h2: 0 ≠ a.toNat := by
+      intro h
+      have : a.toNat = 0 ↔ a ≤ 0 := Int.toNat_eq_zero
+      have : a ≤ 0 := this.mp h.symm
+      have : a = 0 := (LE.le.le_iff_eq ha').mp this
+      rw [this] at ha
+      contradiction
+    exact lt_of_le_of_ne h1 h2
+  have : 0 < a.toNat ^ n := by
+    exact pow_pos ha_nat n
+  have : Int.ofNat 0 < Int.ofNat (a.toNat ^ n) := by
+    exact Int.ofNat_le.mpr this
+  have : Int.ofNat 0 < (Int.ofNat a.toNat) ^ n := by
+    rw [Int_ofNat_pow]
+    exact this
+  simp at this
+  have max_a: max a 0 = a := by
+    exact max_eq_left ha'
+  rw [max_a] at this
+  exact this
+
 lemma lemma3 {d₁ d₂: Nat} (hd₁ : d₁ > 1) (hd₂ : d₂ > 1)
   : let e₂': Int := ∑ i ∈ Finset.range d₂, (2 ^ d₁) ^ (d₂ - i - 1) * 1 ^ i;
     1 < e₂' := by
@@ -336,14 +362,7 @@ lemma lemma3 {d₁ d₂: Nat} (hd₁ : d₁ > 1) (hd₂ : d₂ > 1)
       rw [this]
       simp
       have :(0: Int) < 2 ^ d₁ := by
-        have : 0 < 2 ^ d₁ := by
-          exact pow_pos (by decide) d₁
-        have : Int.ofNat 0 < Int.ofNat (2 ^ d₁) := by
-          exact Int.ofNat_le.mpr this
-        have : Int.ofNat 0 < (Int.ofNat 2) ^ d₁ := by
-          rw [Int_ofNat_pow]
-          exact this
-        exact this
+        exact int_pow_pos (by decide)
       exact this
     | l + 2 =>
       simp at ih
@@ -362,8 +381,10 @@ lemma lemma3 {d₁ d₂: Nat} (hd₁ : d₁ > 1) (hd₂ : d₂ > 1)
       calc (0: Int)
         _ < 2 ^ d₁ := by sorry
         _ = 2 ^ d₁ * 1 := by simp
-        _ = 2 ^ d₁ * ∑ x ∈ Finset.range (l + 2), (2 ^ d₁) ^ (l + 2 - x - 1) := by
-          sorry
+        _ < 2 ^ d₁ * ∑ x ∈ Finset.range (l + 2), (2 ^ d₁) ^ (l + 2 - x - 1) := by
+          apply Int.mul_lt_mul_of_pos_left
+          . exact ih
+          . exact int_pow_pos (by decide)
 
 example {n: ℕ} : Nat.Prime (2 ^ n - 1) → Nat.Prime n := by
   contrapose!

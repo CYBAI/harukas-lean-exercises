@@ -314,6 +314,39 @@ lemma Int_ofNat_pow {a : Nat} {b : Nat} : Int.ofNat a ^ b = Int.ofNat (a ^ b) :=
     Int.ofNat a ^ b = ↑(a: Nat) ^ b := by rfl
     _ = Int.ofNat (a ^ b) := Eq.symm (Lean.Omega.Int.ofNat_pow a b)
 
+lemma lemma3 {d₁ d₂: Nat} (hd₁ : d₁ > 1) (hd₂ : d₂ > 1)
+  : let e₂': Int := ∑ i ∈ Finset.range d₂, (2 ^ d₁) ^ (d₂ - i - 1) * 1 ^ i;
+    1 < e₂' := by
+  simp
+  induction d₂ with
+  | zero =>
+    contradiction
+  | succ k ih =>
+    match hk: k with
+    | 0 =>
+      contradiction
+    | 1 =>
+      sorry
+    | l + 2 =>
+      simp at ih
+      rw [Finset.sum_range_succ]
+      simp
+      have : ∀x ∈ Finset.range (l + 2),
+        ((2: Int) ^ d₁) ^ (l + 2 + 1 - x - 1) = (2 ^ d₁) ^ (l + 2 - x - 1) * 2 ^ d₁ := by
+        sorry
+      have : ∑ x ∈ Finset.range (l + 2), ((2: Int) ^ d₁) ^ (l + 2 + 1 - x - 1) = ∑ x ∈ Finset.range (l + 2), (2 ^ d₁) ^ (l + 2 - x - 1) * 2 ^ d₁ := by
+        apply Finset.sum_congr rfl
+        exact this
+      rw [this]
+      have : ∑ x ∈ Finset.range (l + 2), ((2: Int) ^ d₁) ^ (l + 2 - x - 1) * 2 ^ d₁ = 2 ^ d₁ * ∑ x ∈ Finset.range (l + 2), (2 ^ d₁) ^ (l + 2 - x - 1) := by
+        sorry
+      rw [this]
+      calc (0: Int)
+        _ < 2 ^ d₁ := by sorry
+        _ = 2 ^ d₁ * 1 := by simp
+        _ = 2 ^ d₁ * ∑ x ∈ Finset.range (l + 2), (2 ^ d₁) ^ (l + 2 - x - 1) := by
+          sorry
+
 example {n: ℕ} : Nat.Prime (2 ^ n - 1) → Nat.Prime n := by
   contrapose!
   intro hnp
@@ -459,7 +492,8 @@ example {n: ℕ} : Nat.Prime (2 ^ n - 1) → Nat.Prime n := by
         rw [this] at hd₁
         contradiction
 
-      have : 1 < e₂' := by sorry
+      have : 1 < e₂' := by
+        exact lemma3 hd₁ hd₂
       have : 1 < e₂ := by
         have hb : 0 < e₂' := by
           exact Int.lt_trans (by decide) this

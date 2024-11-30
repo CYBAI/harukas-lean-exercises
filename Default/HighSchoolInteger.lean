@@ -326,7 +326,25 @@ lemma lemma3 {d₁ d₂: Nat} (hd₁ : d₁ > 1) (hd₂ : d₂ > 1)
     | 0 =>
       contradiction
     | 1 =>
-      sorry
+      -- When k = 1 (d₂ = 2), compute e₂' directly
+      let e₂': Int := ∑ x ∈ Finset.range (1 + 1), (2 ^ d₁) ^ (1 + 1 - x - 1)
+      have he₂': e₂' = ∑ x ∈ Finset.range (1 + 1), (2 ^ d₁) ^ (1 + 1 - x - 1) := by rfl
+      have : e₂' = (2 ^ d₁) + 1 := by
+        rw [he₂', Finset.sum_range_succ, Finset.sum_range_succ]
+        simp
+      rw [he₂'] at this
+      rw [this]
+      simp
+      have :(0: Int) < 2 ^ d₁ := by
+        have : 0 < 2 ^ d₁ := by
+          exact pow_pos (by decide) d₁
+        have : Int.ofNat 0 < Int.ofNat (2 ^ d₁) := by
+          exact Int.ofNat_le.mpr this
+        have : Int.ofNat 0 < (Int.ofNat 2) ^ d₁ := by
+          rw [Int_ofNat_pow]
+          exact this
+        exact this
+      exact this
     | l + 2 =>
       simp at ih
       rw [Finset.sum_range_succ]

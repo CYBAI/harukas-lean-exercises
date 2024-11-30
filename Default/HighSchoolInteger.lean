@@ -340,7 +340,7 @@ lemma int_pow_pos {n : Nat} {a : Int}: 0 < a → 0 < a ^ n := by
   rw [max_a] at this
   exact this
 
-lemma lemma3 {d₁ d₂: Nat} (hd₁ : d₁ > 1) (hd₂ : d₂ > 1)
+lemma lemma3 {d₁ d₂: Nat} (hd₂ : d₂ > 1)
   : let e₂': Int := ∑ i ∈ Finset.range d₂, (2 ^ d₁) ^ (d₂ - i - 1) * 1 ^ i;
     1 < e₂' := by
   simp
@@ -348,7 +348,7 @@ lemma lemma3 {d₁ d₂: Nat} (hd₁ : d₁ > 1) (hd₂ : d₂ > 1)
   | zero =>
     contradiction
   | succ k ih =>
-    match hk: k with
+    match k with
     | 0 =>
       contradiction
     | 1 =>
@@ -395,8 +395,13 @@ lemma lemma3 {d₁ d₂: Nat} (hd₁ : d₁ > 1) (hd₂ : d₂ > 1)
         apply Finset.sum_congr rfl
         exact this
       rw [this]
-      have : ∑ x ∈ Finset.range (l + 2), ((2: Int) ^ d₁) ^ (l + 2 - x - 1) * 2 ^ d₁ = 2 ^ d₁ * ∑ x ∈ Finset.range (l + 2), (2 ^ d₁) ^ (l + 2 - x - 1) := by
-        sorry
+      have : ∑ x ∈ Finset.range (l + 2), ((2: Int) ^ d₁) ^ (l + 2 - x - 1) * 2 ^ d₁
+          = 2 ^ d₁ * ∑ x ∈ Finset.range (l + 2), (2 ^ d₁) ^ (l + 2 - x - 1) := by
+        rw [mul_sum]
+        apply Finset.sum_congr
+        . rfl
+        . intro i _
+          ring
       rw [this]
       calc (0: Int)
         _ < 2 ^ d₁ := by
@@ -553,7 +558,7 @@ example {n: ℕ} : Nat.Prime (2 ^ n - 1) → Nat.Prime n := by
         contradiction
 
       have : 1 < e₂' := by
-        exact lemma3 hd₁ hd₂
+        exact lemma3 hd₂
       have : 1 < e₂ := by
         have hb : 0 < e₂' := by
           exact Int.lt_trans (by decide) this

@@ -46,13 +46,34 @@ lemma sign_neg_zero_pos (n : Int) : n.sign = 0 ∨ n.sign = 1 ∨ n.sign = -1 :=
     apply Or.inr
     exact this
 
+lemma abs_ne_one {n : Int} (hpos : n ≠ 1) (hneg : n ≠ -1) : n.natAbs ≠ 1 := by
+  cases n with
+  | ofNat n =>
+    have : Int.ofNat n = (n : Int) := by rfl
+    rw [this, Int.natAbs_ofNat n]
+    intro n_eq_1
+    rw [n_eq_1] at hpos
+    contradiction
+  | negSucc k =>
+    rw [Int.natAbs_negSucc k]
+    intro k_succ
+    have k_eq_zero: k = 0 := by
+      rw [Nat.succ_eq_add_one] at k_succ
+      apply Nat.add_right_cancel
+      exact k_succ
+    rw [k_eq_zero] at hneg
+    contradiction
+
 lemma four_conditions_of_prime_g (a b n : Int) : Nat.Prime (g a b n).toNat →
     n = 1 ∨ n = -1 ∨ gr a b n = 1 ∨ gr a b n = -1 := by
   contrapose!
   intro h
-  let ⟨hn, hn', hl, hl'⟩ := h
+  let ⟨hn, hn', hg, hg'⟩ := h
   have : g a b n = n * gr a b n := by
     rw [g_eq_g', g', gr]
+
+  have h_n_abs_ne_one : n.natAbs ≠ 1 := abs_ne_one hn hn'
+  have h_g_abs_ne_one : (gr a b n).natAbs ≠ 1 := abs_ne_one hg hg'
 
   have h_sign_abs: g a b n = n.sign * (gr a b n).sign * n.natAbs * (gr a b n).natAbs := by
     rw [this]
@@ -71,8 +92,21 @@ lemma four_conditions_of_prime_g (a b n : Int) : Nat.Prime (g a b n).toNat →
   | Or.inr (Or.inl hn_sign) =>
     -- n.sign = 1
     match sign_neg_zero_pos (gr a b n) with
-    | Or.inl hg_sign => sorry
-    | Or.inr (Or.inl hg_sign) => sorry
+    | Or.inl hg_sign =>
+      -- (gr a b n).sign = 0
+      have : g a b n = 0 := by
+        rw [h_sign_abs, hg_sign]
+        ring
+      simp [this]
+      exact Nat.not_prime_zero
+    | Or.inr (Or.inl hg_sign) =>
+      -- (gr a b n).sign = 1
+      have : g a b n = n.natAbs * (gr a b n).natAbs := by
+        rw [h_sign_abs, hn_sign, hg_sign]
+        simp
+      have : (g a b n).toNat = n.natAbs * (gr a b n).natAbs := by sorry
+      rw [this]
+      exact Nat.not_prime_mul h_n_abs_ne_one h_g_abs_ne_one
     | Or.inr (Or.inr hg_sign) => sorry
   | Or.inr (Or.inr hn_sign) =>
     -- n.sign = -1

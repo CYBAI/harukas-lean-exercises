@@ -64,6 +64,41 @@ lemma abs_ne_one {n : Int} (hpos : n ≠ 1) (hneg : n ≠ -1) : n.natAbs ≠ 1 :
     rw [k_eq_zero] at hneg
     contradiction
 
+lemma mul_of_succ_neg_succ (n : Nat) (m : Nat) : ∃ k: Nat, Int.ofNat (m + 1) * Int.negSucc n = Int.negSucc k := by
+  use m * n + m + n
+  calc Int.ofNat (m + 1) * Int.negSucc n
+    _ = -((↑m + 1) * (↑n + 1)) := by rfl
+    _ = -((↑m * ↑n + ↑m + ↑n) + 1) := by ring
+
+lemma toNat_mul {a : Int} {b : Int} (ha : a ≥ 0) : (a * b).toNat = a.toNat * b.toNat := by
+  cases a with
+  | ofNat m =>
+    cases b with
+    | ofNat n =>
+      simp
+      rfl
+    | negSucc n =>
+      match m with
+      | 0 =>
+        simp
+      | Nat.succ m' =>
+        let ⟨k, hk⟩ := mul_of_succ_neg_succ n m'
+        rw [hk]
+        simp
+  | negSucc m =>
+    match b with
+    | 0 =>
+      simp
+    | Nat.succ b' =>
+      let ⟨k, hk⟩ := mul_of_succ_neg_succ m b'
+      have : Int.negSucc m * ↑b'.succ = Int.negSucc k := by
+        rw [mul_comm]
+        exact hk
+      rw [this]
+      simp
+    | Int.negSucc n =>
+      contradiction
+
 lemma four_conditions_of_prime_g (a b n : Int) : Nat.Prime (g a b n).toNat →
     n = 1 ∨ n = -1 ∨ gr a b n = 1 ∨ gr a b n = -1 := by
   contrapose!
@@ -104,7 +139,9 @@ lemma four_conditions_of_prime_g (a b n : Int) : Nat.Prime (g a b n).toNat →
       have : g a b n = n.natAbs * (gr a b n).natAbs := by
         rw [h_sign_abs, hn_sign, hg_sign]
         simp
-      have : (g a b n).toNat = n.natAbs * (gr a b n).natAbs := by sorry
+      have : (g a b n).toNat = n.natAbs * (gr a b n).natAbs := by
+        rw [this, toNat_mul, Int.toNat_natCast, Int.toNat_natCast]
+        exact Int.natCast_nonneg n.natAbs
       rw [this]
       exact Nat.not_prime_mul h_n_abs_ne_one h_g_abs_ne_one
     | Or.inr (Or.inr hg_sign) => sorry

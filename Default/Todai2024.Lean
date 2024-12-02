@@ -145,6 +145,7 @@ lemma four_conditions_of_prime_g (a b n : Int) : Nat.Prime (g a b n).toNat →
       rw [this]
       exact Nat.not_prime_mul h_n_abs_ne_one h_g_abs_ne_one
     | Or.inr (Or.inr hg_sign) =>
+      -- (gr a b n).sign = -1
       have : (g a b n).toNat = 0 := by
         rw [h_sign_abs, hn_sign, hg_sign]
         simp
@@ -156,10 +157,33 @@ lemma four_conditions_of_prime_g (a b n : Int) : Nat.Prime (g a b n).toNat →
   | Or.inr (Or.inr hn_sign) =>
     -- n.sign = -1
     match sign_neg_zero_pos (gr a b n) with
-    | Or.inl hg_sign => sorry
-    | Or.inr (Or.inl hg_sign) => sorry
-    | Or.inr (Or.inr hg_sign) => sorry
-
+    | Or.inl hg_sign =>
+      -- (gr a b n).sign = 0
+      have : g a b n = 0 := by
+        rw [h_sign_abs, hg_sign]
+        ring
+      simp [this]
+      exact Nat.not_prime_zero
+    | Or.inr (Or.inl hg_sign) =>
+      -- (gr a b n).sign = 1
+      have : (g a b n).toNat = 0 := by
+        rw [h_sign_abs, hn_sign, hg_sign]
+        simp
+        apply Int.mul_nonneg
+        . exact abs_nonneg n
+        . exact abs_nonneg (gr a b n)
+      rw [this]
+      exact Nat.not_prime_zero
+    | Or.inr (Or.inr hg_sign) =>
+      -- (gr a b n).sign = -1
+      have : g a b n = n.natAbs * (gr a b n).natAbs := by
+        rw [h_sign_abs, hn_sign, hg_sign]
+        simp
+      have : (g a b n).toNat = n.natAbs * (gr a b n).natAbs := by
+        rw [this, toNat_mul, Int.toNat_natCast, Int.toNat_natCast]
+        exact Int.natCast_nonneg n.natAbs
+      rw [this]
+      exact Nat.not_prime_mul h_n_abs_ne_one h_g_abs_ne_one
 
 -- 東大 2024 理系数学 第6問 (2)
 -- a, b を整数の定数とし、g(x) = x^3 + a * x^2 + b x とする。

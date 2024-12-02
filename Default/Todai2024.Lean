@@ -144,7 +144,15 @@ lemma four_conditions_of_prime_g (a b n : Int) : Nat.Prime (g a b n).toNat →
         exact Int.natCast_nonneg n.natAbs
       rw [this]
       exact Nat.not_prime_mul h_n_abs_ne_one h_g_abs_ne_one
-    | Or.inr (Or.inr hg_sign) => sorry
+    | Or.inr (Or.inr hg_sign) =>
+      have : (g a b n).toNat = 0 := by
+        rw [h_sign_abs, hn_sign, hg_sign]
+        simp
+        apply Int.mul_nonneg
+        . exact abs_nonneg n
+        . exact abs_nonneg (gr a b n)
+      rw [this]
+      exact Nat.not_prime_zero
   | Or.inr (Or.inr hn_sign) =>
     -- n.sign = -1
     match sign_neg_zero_pos (gr a b n) with

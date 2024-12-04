@@ -12,6 +12,9 @@ def gr (a b x :Int) : Int :=
 def g' (a b x: Int) : Int :=
   x * (x ^ 2 + a * x + b)
 
+def four_conditions (a b n : Int) : Prop :=
+  n = 1 ∨ n = -1 ∨ gr a b n = 1 ∨ gr a b n = -1
+
 lemma g_eq_g'_val (a b x: Int) : g a b x = g' a b x := by
   rw [g, g']
   ring
@@ -99,8 +102,9 @@ lemma toNat_mul {a : Int} {b : Int} (ha : a ≥ 0) : (a * b).toNat = a.toNat * b
     | Int.negSucc n =>
       contradiction
 
-lemma four_conditions_of_prime_g (a b n : Int) : Nat.Prime (g a b n).toNat →
-    n = 1 ∨ n = -1 ∨ gr a b n = 1 ∨ gr a b n = -1 := by
+lemma four_conditions_of_prime_g {a b n : Int} : Nat.Prime (g a b n).toNat →
+    four_conditions a b n := by
+  unfold four_conditions
   contrapose!
   intro h
   let ⟨hn, hn', hg, hg'⟩ := h

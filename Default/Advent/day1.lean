@@ -18,7 +18,7 @@ def frequency_map (list: List Nat): Std.HashMap Nat Nat :=
 
 -- Read input
 
-def read_input : IO String := IO.FS.readFile "Default/Advent/1201.txt"
+def read_input : IO String := IO.FS.readFile "Default/Advent/day1.txt"
 
 def parse_input (input: String) : ((List Nat) × (List Nat)) :=
   let lines := (input.splitOn "\n").map

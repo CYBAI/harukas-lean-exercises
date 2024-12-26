@@ -31,6 +31,7 @@ structure Parser (α : Type) where
   /-- The cursor should move forward if the parser succeeds, which means something in cursor should be consumed. -/
   cursor_moves_forward : ∀ (t : Text) (a : α) (t' : Text), run t = some (a, t') → t'.cursor < t.cursor
 
+-- Parse a single digit character `0-9`.
 def digitParser : Parser Char where
   run := fun text =>
     let ⟨content, cursor⟩ := text
@@ -42,28 +43,81 @@ def digitParser : Parser Char where
   cursor_moves_forward := fun t a t' h =>
     by
       simp at h
+      -- Break down `h` into atomic props to make is available for `assumption`.
+      let ⟨⟨_, _⟩, _, _⟩ := h
       have not_end: ¬t.cursor.atEnd := by
         simp
-        exact h.left.left
+        assumption
       have : t.next = t' := by
-        exact h.right.right
+        assumption
       rw [←this]
       exact Text.cursor_lt_next t not_end
 
-#eval digitParser.run (Text.mk "123" "123".iter)
+-- #eval digitParser.run (Text.mk "123" "123".iter)
 
-def many (parser : Parser α) : Parser (List α) where
-  run := fun text =>
-    match parser.run text with
+def manyRun (parser : Parser α) (t : Text) : Option (List α × Text) :=
+  match parser.run t with
+  | some (x, rest) =>
+    match (manyRun parser) rest with
+    | some (xs, rest') => some (x :: xs, rest')
+    | none => some ([x], rest)
+  | none =>
+    none
+  decreasing_by sorry
+
+theorem many_some_none_empty :
+  ∀ (t : Text) (l : List α) (t' : Text),
+  manyRun parser t = some (l, t') → ¬ l.isEmpty := by
+    intro t l t' h
+    match hp : parser.run t with
     | some (x, rest) =>
-      match (many parser).run rest with
-      | some (xs, rest') => some (x :: xs, rest')
-      | none => none
+      unfold manyRun at h
+      simp [hp] at h
+      match hr : manyRun parser rest with
+      | some (xs, rest') =>
+        simp [hr] at h
+        have l_gt_zero : 0 < l.length := by
+          exact List.length_pos_iff_exists_cons.mpr ⟨x, xs, h.left.symm⟩
+        intro h_empty
+        have : l.length = 0 := by
+          rw [List.isEmpty_iff_length_eq_zero] at h_empty
+          exact h_empty
+        rw [this] at l_gt_zero
+        contradiction
+      | none =>
+        simp [hr] at h
+        have : l = [x] := by exact h.left.symm
+        rw [this]
+        intro h
+        contradiction
     | none =>
-      some ([], text)
-  cursor_moves_forward := sorry
+      have : manyRun parser t = none := by
+        unfold manyRun
+        simp [hp]
+      rw [this] at h
+      contradiction
 
-#eval! (many digitParser).run (Text.mk "123c" "123c".iter)
+-- def many (parser : Parser α) : Parser (List α) where
+--   run := manyRun parser
+--   cursor_moves_forward := fun t l t' h =>
+--     by
+--       let manyp := many parser
+--       unfold manyRun at h
+--       induction l with
+--       | nil =>
+--         -- If (many parser).run t is some, then it's list should be non-empty.
+--         have (t : Text) (l : List α) (t' : Text) :
+--           manyp.run t = some (l, t') → ¬ l.isEmpty := by
+--           intro h
+
+--         -- So, the list should be non-empty.
+
+--         sorry
+--       | cons hd tl ih =>
+--         sorry
+
+-- #eval! (many digitParser).run (Text.mk "123c" "123c".iter)
+-- #eval! (many digitParser).run (Text.mk "c123" "c123".iter.toEnd)
 
 -- def many2 (p : Parser α) : Parser (List α) :=
 --   fun text =>
@@ -73,109 +127,109 @@ def many (parser : Parser α) : Parser (List α) where
 --       | none => (acc.reverse, text)
 --     loop text []
 
-inductive NatScanResult where
-  | invalid
-  | nat (n : Nat)
-  deriving Repr
+-- inductive NatScanResult where
+--   | invalid
+--   | nat (n : Nat)
+--   deriving Repr
 
-inductive NatScanMatch where
-  /-- no match yet -/
-  | init
-  /-- digits -/
-  | digits (chars : List Char)
-  /-- final result -/
-  | finished (result : NatScanResult)
-  deriving Repr
+-- inductive NatScanMatch where
+--   /-- no match yet -/
+--   | init
+--   /-- digits -/
+--   | digits (chars : List Char)
+--   /-- final result -/
+--   | finished (result : NatScanResult)
+--   deriving Repr
 
-structure NatScanner where
-  cursor : String.Iterator
-  matching : NatScanMatch
-  deriving Repr
+-- structure NatScanner where
+--   cursor : String.Iterator
+--   matching : NatScanMatch
+--   deriving Repr
 
-def scan_nat_step (text: String) (scanner : NatScanner) : NatScanner :=
-  let ⟨cursor, matching⟩ := scanner
-  match matching with
-  | .init =>
-    let c := text.get cursor.pos
-    if c.isDigit && c ≠ '0' then
-      { cursor := cursor.next, matching := .digits [c] }
-    else
-      { scanner with matching := .finished .invalid }
-  | .digits chars =>
-    let c := text.get cursor.pos
-    if c.isDigit then
-      { cursor := cursor.next, matching := .digits (chars ++ [c]) }
-    else
-      let n := chars.asString |>.toNat!
-      { cursor := cursor, matching := .finished (.nat n) }
-  | .finished _ =>
-    scanner
+-- def scan_nat_step (text: String) (scanner : NatScanner) : NatScanner :=
+--   let ⟨cursor, matching⟩ := scanner
+--   match matching with
+--   | .init =>
+--     let c := text.get cursor.pos
+--     if c.isDigit && c ≠ '0' then
+--       { cursor := cursor.next, matching := .digits [c] }
+--     else
+--       { scanner with matching := .finished .invalid }
+--   | .digits chars =>
+--     let c := text.get cursor.pos
+--     if c.isDigit then
+--       { cursor := cursor.next, matching := .digits (chars ++ [c]) }
+--     else
+--       let n := chars.asString |>.toNat!
+--       { cursor := cursor, matching := .finished (.nat n) }
+--   | .finished _ =>
+--     scanner
 
--- Scan a natural number from the given text until a non-digit character is found or the end of the text is reached.
-def scan_nat (text: String) (cursor : String.Iterator) : String.Iterator × NatScanResult :=
-  let scanner := NatScanner.mk cursor NatScanMatch.init
-  let scanner' := scan_nat_step text scanner
-  match scanner'.matching with
-  | NatScanMatch.finished result => (scanner'.cursor, result)
-  | _ => (cursor, NatScanResult.invalid)
+-- -- Scan a natural number from the given text until a non-digit character is found or the end of the text is reached.
+-- def scan_nat (text: String) (cursor : String.Iterator) : String.Iterator × NatScanResult :=
+--   let scanner := NatScanner.mk cursor NatScanMatch.init
+--   let scanner' := scan_nat_step text scanner
+--   match scanner'.matching with
+--   | NatScanMatch.finished result => (scanner'.cursor, result)
+--   | _ => (cursor, NatScanResult.invalid)
 
-inductive ScanMatch where
-  /-- no match yet -/
-  | none
-  /-- "mul(" -/
-  | mul_found
-  /-- "mul(" + number -/
-  | mul1 (n : Nat)
-  /-- "mul(" + number + "," -/
-  | mul1_comma (n : Nat)
-  /-- "mul(" + number + "," + number -/
-  | mul2 (n1 n2 : Nat)
-  /-- "mul(" + number + "," + number + ")" -/
-  | mul_end (n1 n2 : Nat)
+-- inductive ScanMatch where
+--   /-- no match yet -/
+--   | none
+--   /-- "mul(" -/
+--   | mul_found
+--   /-- "mul(" + number -/
+--   | mul1 (n : Nat)
+--   /-- "mul(" + number + "," -/
+--   | mul1_comma (n : Nat)
+--   /-- "mul(" + number + "," + number -/
+--   | mul2 (n1 n2 : Nat)
+--   /-- "mul(" + number + "," + number + ")" -/
+--   | mul_end (n1 n2 : Nat)
 
-structure Scanner where
-  cursor : String.Iterator
-  matching : ScanMatch
-  results : List (Nat × Nat)
+-- structure Scanner where
+--   cursor : String.Iterator
+--   matching : ScanMatch
+--   results : List (Nat × Nat)
 
-def scan (text: String) (state : Scanner) : Scanner :=
-  let ⟨cursor, matching, results⟩ := state
+-- def scan (text: String) (state : Scanner) : Scanner :=
+--   let ⟨cursor, matching, results⟩ := state
 
-  match matching with
-  | ScanMatch.none =>
-    let next_cursor := cursor.nextn 4
-    if text.extract cursor.pos next_cursor.pos == "mul(" then
-      { state with cursor := next_cursor, matching := ScanMatch.mul_found }
-    else
-      { state with cursor := cursor.next }
+--   match matching with
+--   | ScanMatch.none =>
+--     let next_cursor := cursor.nextn 4
+--     if text.extract cursor.pos next_cursor.pos == "mul(" then
+--       { state with cursor := next_cursor, matching := ScanMatch.mul_found }
+--     else
+--       { state with cursor := cursor.next }
 
-  | ScanMatch.mul_found =>
-    let (newCursor, number) := scan_nat text cursor
-    if number > 0 then
-      { state with cursor := newCursor, matching := ScanMatch.mul1 number }
-    else
-      { state with cursor := cursor.next, matching := ScanMatch.none }
+--   | ScanMatch.mul_found =>
+--     let (newCursor, number) := scan_nat text cursor
+--     if number > 0 then
+--       { state with cursor := newCursor, matching := ScanMatch.mul1 number }
+--     else
+--       { state with cursor := cursor.next, matching := ScanMatch.none }
 
-  | ScanMatch.mul1 n =>
-    let c := text.get cursor.pos
-    if c == ',' then
-      { state with cursor := cursor.next, matching := ScanMatch.mul1_comma n }
-    else
-      { state with cursor := cursor.next, matching := ScanMatch.none }
+--   | ScanMatch.mul1 n =>
+--     let c := text.get cursor.pos
+--     if c == ',' then
+--       { state with cursor := cursor.next, matching := ScanMatch.mul1_comma n }
+--     else
+--       { state with cursor := cursor.next, matching := ScanMatch.none }
 
-  | ScanMatch.mul1_comma n =>
-    let c := text.get cursor.pos
-    if c.isDigit then
-      { state with cursor := cursor.next, matching := ScanMatch.mul2 n (c.toNat - '0'.toNat) }
-    else
-      { state with cursor := cursor.next, matching := ScanMatch.none }
+--   | ScanMatch.mul1_comma n =>
+--     let c := text.get cursor.pos
+--     if c.isDigit then
+--       { state with cursor := cursor.next, matching := ScanMatch.mul2 n (c.toNat - '0'.toNat) }
+--     else
+--       { state with cursor := cursor.next, matching := ScanMatch.none }
 
-  | ScanMatch.mul2 n1 n2 =>
-    let c := text.get cursor.pos
-    if c == ')' then
-      { state with cursor := cursor.next, matching := ScanMatch.mul_end n1 n2, results := (n1, n2) :: results }
-    else
-      { state with cursor := cursor.next, matching := ScanMatch.none }
+--   | ScanMatch.mul2 n1 n2 =>
+--     let c := text.get cursor.pos
+--     if c == ')' then
+--       { state with cursor := cursor.next, matching := ScanMatch.mul_end n1 n2, results := (n1, n2) :: results }
+--     else
+--       { state with cursor := cursor.next, matching := ScanMatch.none }
 
-  | ScanMatch.mul_end n1 n2 =>
-    { state with cursor := cursor.next, matching := ScanMatch.none, results := (n1, n2) :: results }
+--   | ScanMatch.mul_end n1 n2 =>
+--     { state with cursor := cursor.next, matching := ScanMatch.none, results := (n1, n2) :: results }

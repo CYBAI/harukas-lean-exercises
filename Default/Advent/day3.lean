@@ -1,13 +1,28 @@
+import Mathlib.Tactic.ByContra
+
 -- valid pattern: mul(2,4)
 
 -- Input
 
 def read_input : IO String := IO.FS.readFile "Default/Advent/day2.txt"
 
+-- General
+
+def String.Iterator.atEnd_of_sizeOf_zero (it : String.Iterator) (h : sizeOf it = 0) : it.atEnd := by
+  apply Classical.not_not.mp
+  intro h_not_end
+  have : sizeOf it.next < sizeOf it := String.Iterator.sizeOf_next_lt_of_atEnd it h_not_end
+  rw [h] at this
+  exact Nat.not_succ_le_zero (sizeOf it.next) this
+
 -- Extensions
 
 instance : LT String.Iterator where
   lt := fun it1 it2 => sizeOf it1 < sizeOf it2
+
+theorem iter_lt_trans {it1 it2 it3 : String.Iterator}
+    (h1 : it1 < it2) (h2 : it2 < it3) : it1 < it3 :=
+  Nat.lt_trans h1 h2
 
 -- Parser
 
@@ -30,6 +45,8 @@ structure Parser (α : Type) where
   run : Text → Option (α × Text)
   /-- The cursor should move forward if the parser succeeds, which means something in cursor should be consumed. -/
   cursor_moves_forward : ∀ (t : Text) (a : α) (t' : Text), run t = some (a, t') → t'.cursor < t.cursor
+  /-- If the cursor is at the end, the parser should return none. -/
+  none_of_cursor_atEnd : ∀ (t : Text), t.cursor.atEnd → run t = none
 
 -- Parse a single digit character `0-9`.
 def digitParser : Parser Char where
@@ -52,18 +69,31 @@ def digitParser : Parser Char where
         assumption
       rw [←this]
       exact Text.cursor_lt_next t not_end
+  none_of_cursor_atEnd := fun t h =>
+    by
+      simp [h]
 
 -- #eval digitParser.run (Text.mk "123" "123".iter)
 
 def manyRun (parser : Parser α) (t : Text) : Option (List α × Text) :=
-  match parser.run t with
-  | some (x, rest) =>
-    match (manyRun parser) rest with
-    | some (xs, rest') => some (x :: xs, rest')
-    | none => some ([x], rest)
-  | none =>
+  -- Somehow `decreasing_by` doesn't recognize how `rest` is constructed when using `match`.
+  -- So, we need to use `let` and `if` instead.
+  let p := parser.run t
+  if hsome: p.isSome then
+    let x := (p.get hsome).fst
+    let rest := (p.get hsome).snd
+    match manyRun parser rest with
+      | some (xs, rest') => some (x :: xs, rest')
+      | none => some ([x], rest)
+  else
     none
-  decreasing_by sorry
+  termination_by t.cursor
+  decreasing_by
+    have : parser.run t = some ((p.get hsome).fst, (p.get hsome).snd) := by
+      have : (parser.run t).isSome = true := hsome
+      have : parser.run t = some ((parser.run t).get this) := Option.eq_some_of_isSome this
+      exact this
+    exact parser.cursor_moves_forward t (p.get hsome).fst (p.get hsome).snd this
 
 theorem many_some_none_empty :
   ∀ (t : Text) (l : List α) (t' : Text),
@@ -97,24 +127,57 @@ theorem many_some_none_empty :
       rw [this] at h
       contradiction
 
--- def many (parser : Parser α) : Parser (List α) where
---   run := manyRun parser
---   cursor_moves_forward := fun t l t' h =>
---     by
---       let manyp := many parser
---       unfold manyRun at h
---       induction l with
---       | nil =>
---         -- If (many parser).run t is some, then it's list should be non-empty.
---         have (t : Text) (l : List α) (t' : Text) :
---           manyp.run t = some (l, t') → ¬ l.isEmpty := by
---           intro h
+def many (parser : Parser α) : Parser (List α) where
+  run := manyRun parser
+  cursor_moves_forward := by
+    intro t
+    generalize hn : sizeOf t.cursor = n
+    induction n generalizing t with
+    | zero =>
+      intro l t' h
+      have : t.cursor.atEnd := by
+        exact String.Iterator.atEnd_of_sizeOf_zero t.cursor hn
 
---         -- So, the list should be non-empty.
+    | succ n ih =>
 
---         sorry
---       | cons hd tl ih =>
---         sorry
+      sorry
+
+    -- intro t l t' h
+    -- match hp : parser.run t with
+    -- | some (x, rest) =>
+    --   unfold manyRun at h
+    --   simp [hp] at h
+    --   match hr : manyRun parser rest with
+    --   | some (xs, rest') =>
+    --     simp [hr] at h
+    --     have : l = x :: xs := by exact h.left.symm
+    --     rw [this] at h
+    --     have t'_lt_rest : t'.cursor < rest.cursor := by
+    --       -- hr より manbyRun parser rest = some (xs, t') なので、
+    --       -- manyRun の中で最初の parser.run が成功していることがわかる。
+    --       unfold manyRun at hr
+    --       simp [hp] at hr
+    --       let ⟨a, b⟩ := hr
+
+
+    --       -- exact parser.cursor_moves_forward rest x rest' hr
+    --     have rest_lt_t : rest.cursor < t.cursor := by
+    --       exact parser.cursor_moves_forward t x rest hp
+    --     exact iter_lt_trans t'_lt_rest rest_lt_t
+    --   | none =>
+    --     simp [hr] at h
+    --     have : l = [x] := by exact h.left.symm
+    --     rw [this] at h
+    --     -- exact parser.cursor_moves_forward t x rest h.left
+    --     sorry
+    -- | none =>
+    --   have : manyRun parser t = none := by
+    --     unfold manyRun
+    --     simp [hp]
+    --   rw [this] at h
+    --   contradiction
+
+  none_of_cursor_atEnd := by sorry
 
 -- #eval! (many digitParser).run (Text.mk "123c" "123c".iter)
 -- #eval! (many digitParser).run (Text.mk "c123" "c123".iter.toEnd)

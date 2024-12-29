@@ -137,7 +137,13 @@ def many (parser : Parser α) : Parser (List α) where
       intro l t' h
       have : t.cursor.atEnd := by
         exact String.Iterator.atEnd_of_sizeOf_zero t.cursor hn
-
+      have : parser.run t = none := by
+        exact parser.none_of_cursor_atEnd t this
+      have : manyRun parser t = none := by
+        unfold manyRun
+        simp [this]
+      rw [this] at h
+      contradiction
     | succ n ih =>
 
       sorry

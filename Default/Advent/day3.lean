@@ -199,10 +199,44 @@ theorem many_none_of_cursor_atEnd : ∀ (t : Text), t.cursor.atEnd → manyRun p
   unfold manyRun
   simp [parser.none_of_cursor_atEnd t h]
 
+/-- Parser combinator that runs the given parser one or more times until it fails. -/
 def many (parser : Parser α) : Parser (List α) where
   parse := manyRun parser
   cursor_moves_forward := many_cursor_moves_forward
   none_of_cursor_atEnd := many_none_of_cursor_atEnd
+
+/-- Parser combinator that concatenates two parsers. -/
+def concat (p1 : Parser α) (p2 : Parser β) : Parser (α × β) where
+  parse := fun t =>
+    match p1.parse t with
+    | some (a, t') =>
+      match p2.parse t' with
+      | some (b, t'') => some ((a, b), t'')
+      | none => none
+    | none => none
+  cursor_moves_forward := by
+    intro t prod t'' h
+    match hp1 : p1.parse t with
+    | some (a2, t') =>
+      match hp2 : p2.parse t' with
+      | some (b2, t2'') =>
+        let ⟨a, b⟩ := prod
+        simp [hp1, hp2] at h
+        rw [h.left.left] at hp1
+        rw [h.right, h.left.right] at hp2
+        have lt1: t''.cursor < t'.cursor := by
+          exact p2.cursor_moves_forward t' b t'' hp2
+        have lt2: t'.cursor < t.cursor := by
+          exact p1.cursor_moves_forward t a t' hp1
+        exact iter_lt_trans lt1 lt2
+      | none =>
+        simp [hp1, hp2] at h
+    | none =>
+      simp [hp1] at h
+  none_of_cursor_atEnd := by
+    intro t h
+    simp
+    rw [p1.none_of_cursor_atEnd t h]
 
 -- #eval! (many digitParser).run (Text.mk "123c" "123c".iter)
 -- #eval! (many digitParser).run (Text.mk "c123" "c123".iter.toEnd)

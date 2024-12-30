@@ -127,63 +127,57 @@ theorem many_some_none_empty :
       rw [this] at h
       contradiction
 
-def many (parser : Parser α) : Parser (List α) where
-  run := manyRun parser
-  cursor_moves_forward := by
-    intro t
-    generalize hn : sizeOf t.cursor = n
-    induction n generalizing t with
-    | zero =>
-      intro l t' h
-      have : t.cursor.atEnd := by
-        exact String.Iterator.atEnd_of_sizeOf_zero t.cursor hn
-      have : parser.run t = none := by
-        exact parser.none_of_cursor_atEnd t this
+theorem many_cursor_moves_foward_n (n : ℕ) : ∀ (t : Text) (l : List α) (t' : Text) (_ : sizeOf t.cursor = n),
+  manyRun parser t = some (l, t') → t'.cursor < t.cursor :=
+  Nat.strongRecOn n fun n ih t l t' hn h => by
+    match hp : parser.run t with
+    | some (x, rest) =>
+      unfold manyRun at h
+      simp [hp] at h
+      match hr : manyRun parser rest with
+      | some (xs, rest') =>
+        simp [hr] at h
+        have : l = x :: xs := by exact h.left.symm
+        rw [this] at h
+        rw [h.right] at hr
+        have t'_lt_rest : t'.cursor < rest.cursor := by
+          apply ih (sizeOf rest.cursor)
+          . show sizeOf rest.cursor < n
+            rw [←hn]
+            have : rest.cursor < t.cursor := by
+              exact parser.cursor_moves_forward t x rest hp
+            exact this
+          . show sizeOf rest.cursor = sizeOf rest.cursor
+            rfl
+          . show manyRun parser rest = some (?l, t')
+            exact hr
+        have rest_lt_t : rest.cursor < t.cursor := by
+          exact parser.cursor_moves_forward t x rest hp
+        exact iter_lt_trans t'_lt_rest rest_lt_t
+      | none =>
+        simp [hr] at h
+        rw [h.right] at hp
+        exact parser.cursor_moves_forward t x t' hp
+    | none =>
       have : manyRun parser t = none := by
         unfold manyRun
-        simp [this]
+        simp [hp]
       rw [this] at h
       contradiction
-    | succ n ih =>
 
-      sorry
+theorem many_cursor_moves_forward : ∀ (t : Text) (l : List α) (t' : Text),
+  manyRun parser t = some (l, t') → t'.cursor < t.cursor := by
+  exact fun t l t' a => many_cursor_moves_foward_n (sizeOf t.cursor) t l t' rfl a
 
-    -- intro t l t' h
-    -- match hp : parser.run t with
-    -- | some (x, rest) =>
-    --   unfold manyRun at h
-    --   simp [hp] at h
-    --   match hr : manyRun parser rest with
-    --   | some (xs, rest') =>
-    --     simp [hr] at h
-    --     have : l = x :: xs := by exact h.left.symm
-    --     rw [this] at h
-    --     have t'_lt_rest : t'.cursor < rest.cursor := by
-    --       -- hr より manbyRun parser rest = some (xs, t') なので、
-    --       -- manyRun の中で最初の parser.run が成功していることがわかる。
-    --       unfold manyRun at hr
-    --       simp [hp] at hr
-    --       let ⟨a, b⟩ := hr
+theorem many_none_of_cursor_atEnd : ∀ (t : Text), t.cursor.atEnd → manyRun parser t = none := by
+  intro t h
+  unfold manyRun
+  simp [parser.none_of_cursor_atEnd t h]
 
-
-    --       -- exact parser.cursor_moves_forward rest x rest' hr
-    --     have rest_lt_t : rest.cursor < t.cursor := by
-    --       exact parser.cursor_moves_forward t x rest hp
-    --     exact iter_lt_trans t'_lt_rest rest_lt_t
-    --   | none =>
-    --     simp [hr] at h
-    --     have : l = [x] := by exact h.left.symm
-    --     rw [this] at h
-    --     -- exact parser.cursor_moves_forward t x rest h.left
-    --     sorry
-    -- | none =>
-    --   have : manyRun parser t = none := by
-    --     unfold manyRun
-    --     simp [hp]
-    --   rw [this] at h
-    --   contradiction
-
-  none_of_cursor_atEnd := by sorry
+def many (parser : Parser α) : Parser (List α) where
+  run := manyRun parser
+  cursor_moves_forward := many_cursor_moves_forward
+  none_of_cursor_atEnd := many_none_of_cursor_atEnd
 
 -- #eval! (many digitParser).run (Text.mk "123c" "123c".iter)
 -- #eval! (many digitParser).run (Text.mk "c123" "c123".iter.toEnd)

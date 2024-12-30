@@ -48,7 +48,32 @@ structure Parser (α : Type) where
   /-- If the cursor is at the end, the parser should return none. -/
   none_of_cursor_atEnd : ∀ (t : Text), t.cursor.atEnd → parse t = none
 
--- Parse a single digit character `0-9`.
+/-- Parse a single character. -/
+def charParser (char : Char) : Parser Char where
+  parse := fun text =>
+    let ⟨content, cursor⟩ := text
+    let c := content.get cursor.pos
+    if ¬cursor.atEnd ∧ c = char then
+      some (c, text.next)
+    else
+      none
+  cursor_moves_forward := fun t a t' h =>
+    by
+      simp at h
+      -- Break down `h` into atomic props to make is available for `assumption`.
+      let ⟨⟨_, _⟩, _, _⟩ := h
+      have not_end: ¬t.cursor.atEnd := by
+        simp
+        assumption
+      have : t.next = t' := by
+        assumption
+      rw [←this]
+      exact Text.cursor_lt_next t not_end
+  none_of_cursor_atEnd := fun t h =>
+    by
+      simp [h]
+
+/-- Parse a single digit character `0-9`. -/
 def digitParser : Parser Char where
   parse := fun text =>
     let ⟨content, cursor⟩ := text

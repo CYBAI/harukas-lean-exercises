@@ -42,15 +42,15 @@ theorem Text.cursor_lt_next (t : Text) (h : ¬t.cursor.atEnd = true) : t.next.cu
 
 structure Parser (α : Type) where
   /-- Run the parser. -/
-  run : Text → Option (α × Text)
+  parse : Text → Option (α × Text)
   /-- The cursor should move forward if the parser succeeds, which means something in cursor should be consumed. -/
-  cursor_moves_forward : ∀ (t : Text) (a : α) (t' : Text), run t = some (a, t') → t'.cursor < t.cursor
+  cursor_moves_forward : ∀ (t : Text) (a : α) (t' : Text), parse t = some (a, t') → t'.cursor < t.cursor
   /-- If the cursor is at the end, the parser should return none. -/
-  none_of_cursor_atEnd : ∀ (t : Text), t.cursor.atEnd → run t = none
+  none_of_cursor_atEnd : ∀ (t : Text), t.cursor.atEnd → parse t = none
 
 -- Parse a single digit character `0-9`.
 def digitParser : Parser Char where
-  run := fun text =>
+  parse := fun text =>
     let ⟨content, cursor⟩ := text
     let c := content.get cursor.pos
     if ¬cursor.atEnd ∧ c.isDigit then
@@ -78,7 +78,7 @@ def digitParser : Parser Char where
 def manyRun (parser : Parser α) (t : Text) : Option (List α × Text) :=
   -- Somehow `decreasing_by` doesn't recognize how `rest` is constructed when using `match`.
   -- So, we need to use `let` and `if` instead.
-  let p := parser.run t
+  let p := parser.parse t
   if hsome: p.isSome then
     let x := (p.get hsome).fst
     let rest := (p.get hsome).snd
@@ -89,9 +89,9 @@ def manyRun (parser : Parser α) (t : Text) : Option (List α × Text) :=
     none
   termination_by t.cursor
   decreasing_by
-    have : parser.run t = some ((p.get hsome).fst, (p.get hsome).snd) := by
-      have : (parser.run t).isSome = true := hsome
-      have : parser.run t = some ((parser.run t).get this) := Option.eq_some_of_isSome this
+    have : parser.parse t = some ((p.get hsome).fst, (p.get hsome).snd) := by
+      have : (parser.parse t).isSome = true := hsome
+      have : parser.parse t = some ((parser.parse t).get this) := Option.eq_some_of_isSome this
       exact this
     exact parser.cursor_moves_forward t (p.get hsome).fst (p.get hsome).snd this
 
@@ -99,7 +99,7 @@ theorem many_some_none_empty :
   ∀ (t : Text) (l : List α) (t' : Text),
   manyRun parser t = some (l, t') → ¬ l.isEmpty := by
     intro t l t' h
-    match hp : parser.run t with
+    match hp : parser.parse t with
     | some (x, rest) =>
       unfold manyRun at h
       simp [hp] at h
@@ -130,7 +130,7 @@ theorem many_some_none_empty :
 theorem many_cursor_moves_foward_n (n : ℕ) : ∀ (t : Text) (l : List α) (t' : Text) (_ : sizeOf t.cursor = n),
   manyRun parser t = some (l, t') → t'.cursor < t.cursor :=
   Nat.strongRecOn n fun n ih t l t' hn h => by
-    match hp : parser.run t with
+    match hp : parser.parse t with
     | some (x, rest) =>
       unfold manyRun at h
       simp [hp] at h
@@ -175,7 +175,7 @@ theorem many_none_of_cursor_atEnd : ∀ (t : Text), t.cursor.atEnd → manyRun p
   simp [parser.none_of_cursor_atEnd t h]
 
 def many (parser : Parser α) : Parser (List α) where
-  run := manyRun parser
+  parse := manyRun parser
   cursor_moves_forward := many_cursor_moves_forward
   none_of_cursor_atEnd := many_none_of_cursor_atEnd
 

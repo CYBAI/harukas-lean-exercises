@@ -4,7 +4,7 @@ import Mathlib.Tactic.ByContra
 
 -- Input
 
-def read_input : IO String := IO.FS.readFile "Default/Advent/day2.txt"
+def read_input : IO String := IO.FS.readFile "Default/Advent/day3.txt"
 
 -- General
 
@@ -132,6 +132,32 @@ def nonZeroDigit : Parser Char where
   none_of_cursor_atEnd := fun t h =>
     by
       simp [h]
+
+def anyChar : Parser Unit where
+  parse := fun text => do
+    let ⟨_, cursor⟩ := text
+    if cursor.atEnd then none
+    some ((), text.next)
+  cursor_moves_forward := fun t a t' h =>
+    by
+      simp at h
+      let ⟨_, _⟩ := h
+      have not_end: ¬t.cursor.atEnd := by
+        simp
+        assumption
+      have : t.next = t' := by
+        assumption
+      rw [←this]
+      exact Text.cursor_lt_next t not_end
+  none_of_cursor_atEnd := fun t h =>
+    by
+      simp [h]
+
+example :
+  let text := Text.from "a"
+  anyChar.parse text = some ((), text.next) := by rfl
+
+-- Parser combinators
 
 def manyRun (parser : Parser α) (t : Text) : Option (List α × Text) :=
   -- Somehow `decreasing_by` doesn't recognize how `rest` is constructed when using `match`.
@@ -308,6 +334,38 @@ def concatOpt (p1 : Parser α) (p2 : Parser β) : Parser (α × Option β) where
     simp
     rw [p1.none_of_cursor_atEnd t h]
 
+def fallback (p1 : Parser α) (p2 : Parser β) : Parser (Sum α β) where
+  parse := fun t =>
+    match p1.parse t with
+    | some (a, t') => some (Sum.inl a, t')
+    | none =>
+      match p2.parse t with
+      | some (b, t') => some (Sum.inr b, t')
+      | none => none
+  cursor_moves_forward := by
+    intro t sum t' h
+    match hp1 : p1.parse t with
+    | some (a, _) =>
+      simp [hp1] at h
+      rw [h.right] at hp1
+      exact p1.cursor_moves_forward t a t' hp1
+    | none =>
+      match hp2 : p2.parse t with
+      | some (b, _) =>
+        simp [hp1, hp2] at h
+        rw [h.right] at hp2
+        exact p2.cursor_moves_forward t b t' hp2
+      | none =>
+        simp [hp1, hp2] at h
+  none_of_cursor_atEnd := by
+    intro t h
+    simp
+    rw [p1.none_of_cursor_atEnd t h]
+    simp
+    rw [p2.none_of_cursor_atEnd t h]
+
+#eval (fallback (char 'a') (char 'b')).parse (Text.from "b")
+
 def map {α β} (f : α → β) (parser : Parser α) : Parser β where
   parse := fun t => do
     let ⟨a, t'⟩ ← parser.parse t
@@ -354,3 +412,21 @@ def mulRaw : Parser ((((Unit × Nat) × Char) × Nat) × Char) := mulHead ++ num
  e.g. "mul(2,4)" -> (2, 4)
 -/
 def mul : Parser (Nat × Nat) := map (fun ((((_, a), _), b), _) => (a, b)) mulRaw
+
+-- #eval mul.parse (Text.from "mul(2,4)")
+
+def mulRepeat := many (fallback mul anyChar)
+
+def mainParse: IO Unit := do
+  let input ← read_input
+  let text := Text.from input
+  if let some (muls, _) := mulRepeat.parse text then
+    let m : List (Nat × Nat) := muls.filterMap fun
+      | Sum.inl mul => some mul
+      | Sum.inr _ => none
+    let prodSum : Nat := m.foldl (fun acc (a, b) => acc + a * b) 0
+    IO.print s!"{prodSum}\n"
+  else
+    IO.print "Failed to parse\n"
+
+-- #eval mainParse

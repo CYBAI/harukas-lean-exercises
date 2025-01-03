@@ -20,9 +20,24 @@ def String.Iterator.atEnd_of_sizeOf_zero (it : String.Iterator) (h : sizeOf it =
 instance : LT String.Iterator where
   lt := fun it1 it2 => sizeOf it1 < sizeOf it2
 
+instance : LE String.Iterator where
+  le := fun it1 it2 => sizeOf it1 ≤ sizeOf it2
+
 theorem iter_lt_trans {it1 it2 it3 : String.Iterator}
     (h1 : it1 < it2) (h2 : it2 < it3) : it1 < it3 :=
   Nat.lt_trans h1 h2
+
+theorem iter_lt_of_le_lt {it1 it2 it3 : String.Iterator}
+    (h1 : it1 ≤ it2) (h2 : it2 < it3) : it1 < it3 :=
+  Nat.lt_of_le_of_lt h1 h2
+
+theorem iter_le_of_eq {it1 it2 : String.Iterator}
+    (h : it1 = it2) : it1 ≤ it2 :=
+  Nat.le_of_eq (congrArg sizeOf h)
+
+theorem iter_le_of_lt {it1 it2 : String.Iterator}
+    (h : it1 < it2) : it1 ≤ it2 :=
+  Nat.le_of_lt h
 
 -- Parser
 
@@ -159,18 +174,16 @@ example :
 
 -- Parser combinators
 
-def manyRun (parser : Parser α) (t : Text) : Option (List α × Text) :=
+def manyRunAux (parser : Parser α) (acc : List α) (t : Text) : List α × Text :=
   -- Somehow `decreasing_by` doesn't recognize how `rest` is constructed when using `match`.
   -- So, we need to use `let` and `if` instead.
   let p := parser.parse t
   if hsome: p.isSome then
     let x := (p.get hsome).fst
     let rest := (p.get hsome).snd
-    match manyRun parser rest with
-      | some (xs, rest') => some (x :: xs, rest')
-      | none => some ([x], rest)
+    manyRunAux parser (acc ++ [x]) rest
   else
-    none
+    (acc, t)
   termination_by t.cursor
   decreasing_by
     have : parser.parse t = some ((p.get hsome).fst, (p.get hsome).snd) := by
@@ -179,69 +192,56 @@ def manyRun (parser : Parser α) (t : Text) : Option (List α × Text) :=
       exact this
     exact parser.cursor_moves_forward t (p.get hsome).fst (p.get hsome).snd this
 
-theorem many_some_none_empty :
-  ∀ (t : Text) (l : List α) (t' : Text),
-  manyRun parser t = some (l, t') → ¬ l.isEmpty := by
-    intro t l t' h
+def manyRun (parser : Parser α) (t : Text) : Option (List α × Text) := do
+  let ⟨x, rest⟩ ← parser.parse t
+  manyRunAux parser [x] rest
+
+#eval! manyRun digit (Text.from "123,4")
+
+theorem manyRunAux_cursor_moves_forward_weak (n : ℕ) : ∀ (parser : Parser α) (l : List α) (t : Text) (l' : List α) (t' : Text) (_ : sizeOf t.cursor = n),
+  manyRunAux parser l t = (l', t') → t'.cursor ≤ t.cursor :=
+  Nat.strongRecOn n fun n ih parser l t l' t' hn h => by
     match hp : parser.parse t with
     | some (x, rest) =>
-      unfold manyRun at h
+      unfold manyRunAux at h
       simp [hp] at h
-      match hr : manyRun parser rest with
-      | some (xs, rest') =>
-        simp [hr] at h
-        have l_gt_zero : 0 < l.length := by
-          exact List.length_pos_iff_exists_cons.mpr ⟨x, xs, h.left.symm⟩
-        intro h_empty
-        have : l.length = 0 := by
-          rw [List.isEmpty_iff_length_eq_zero] at h_empty
-          exact h_empty
-        rw [this] at l_gt_zero
-        contradiction
-      | none =>
-        simp [hr] at h
-        have : l = [x] := by exact h.left.symm
-        rw [this]
-        intro h
-        contradiction
+      have t'_lt_rest : t'.cursor ≤ rest.cursor := by
+        apply ih (sizeOf rest.cursor)
+        . show sizeOf rest.cursor < n
+          rw [←hn]
+          apply parser.cursor_moves_forward
+          exact hp
+        . show sizeOf rest.cursor = sizeOf rest.cursor
+          rfl
+        . show manyRunAux ?parser ?l rest = (?l', t')
+          exact h
+      have rest_lt_t : rest.cursor < t.cursor := by
+        exact parser.cursor_moves_forward t x rest hp
+      have t'_lt_t : t'.cursor < t.cursor := by
+        exact iter_lt_of_le_lt t'_lt_rest rest_lt_t
+      exact iter_le_of_lt t'_lt_t
     | none =>
-      have : manyRun parser t = none := by
-        unfold manyRun
+      have : manyRunAux parser l t = (l, t) := by
+        unfold manyRunAux
         simp [hp]
       rw [this] at h
-      contradiction
+      have : t = t' := by
+        injection h
+      rw [this]
+      exact iter_le_of_eq rfl
 
 theorem many_cursor_moves_foward_n (n : ℕ) : ∀ (t : Text) (l : List α) (t' : Text) (_ : sizeOf t.cursor = n),
-  manyRun parser t = some (l, t') → t'.cursor < t.cursor :=
-  Nat.strongRecOn n fun n ih t l t' hn h => by
+  manyRun parser t = some (l, t') → t'.cursor < t.cursor := by
+    intro t l t' _ h
     match hp : parser.parse t with
     | some (x, rest) =>
       unfold manyRun at h
       simp [hp] at h
-      match hr : manyRun parser rest with
-      | some (xs, rest') =>
-        simp [hr] at h
-        have : l = x :: xs := by exact h.left.symm
-        rw [this] at h
-        rw [h.right] at hr
-        have t'_lt_rest : t'.cursor < rest.cursor := by
-          apply ih (sizeOf rest.cursor)
-          . show sizeOf rest.cursor < n
-            rw [←hn]
-            have : rest.cursor < t.cursor := by
-              exact parser.cursor_moves_forward t x rest hp
-            exact this
-          . show sizeOf rest.cursor = sizeOf rest.cursor
-            rfl
-          . show manyRun parser rest = some (?l, t')
-            exact hr
-        have rest_lt_t : rest.cursor < t.cursor := by
-          exact parser.cursor_moves_forward t x rest hp
-        exact iter_lt_trans t'_lt_rest rest_lt_t
-      | none =>
-        simp [hr] at h
-        rw [h.right] at hp
-        exact parser.cursor_moves_forward t x t' hp
+      have t'_lt_rest : t'.cursor ≤ rest.cursor := by
+        exact manyRunAux_cursor_moves_forward_weak (sizeOf rest.cursor) parser [x] rest l t' rfl h
+      have rest_lt_t : rest.cursor < t.cursor := by
+        exact parser.cursor_moves_forward t x rest hp
+      exact iter_lt_of_le_lt t'_lt_rest rest_lt_t
     | none =>
       have : manyRun parser t = none := by
         unfold manyRun
@@ -417,7 +417,7 @@ def mul : Parser (Nat × Nat) := map (fun ((((_, a), _), b), _) => (a, b)) mulRa
 
 def mulRepeat := many (fallback mul anyChar)
 
-def mainParse: IO Unit := do
+def part1: IO Nat := do
   let input ← read_input
   let text := Text.from input
   if let some (muls, _) := mulRepeat.parse text then
@@ -425,8 +425,8 @@ def mainParse: IO Unit := do
       | Sum.inl mul => some mul
       | Sum.inr _ => none
     let prodSum : Nat := m.foldl (fun acc (a, b) => acc + a * b) 0
-    IO.print s!"{prodSum}\n"
+    return prodSum
   else
-    IO.print "Failed to parse\n"
+    return 0
 
--- #eval mainParse
+#eval part1

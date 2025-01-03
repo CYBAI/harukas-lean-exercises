@@ -75,18 +75,17 @@ def charParser (char : Char) : Parser Char where
 
 /-- Parse a single digit character `0-9`. -/
 def digitParser : Parser Char where
-  parse := fun text =>
+  parse := fun text => do
     let ⟨content, cursor⟩ := text
+    if cursor.atEnd then none
     let c := content.get cursor.pos
-    if ¬cursor.atEnd ∧ c.isDigit then
-      some (c, text.next)
-    else
-      none
+    if !c.isDigit then none
+    some (c, text.next)
   cursor_moves_forward := fun t a t' h =>
     by
       simp at h
       -- Break down `h` into atomic props to make is available for `assumption`.
-      let ⟨⟨_, _⟩, _, _⟩ := h
+      let ⟨_, _, _, _⟩ := h
       have not_end: ¬t.cursor.atEnd := by
         simp
         assumption

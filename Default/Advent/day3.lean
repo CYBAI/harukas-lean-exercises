@@ -49,7 +49,7 @@ structure Parser (α : Type) where
   none_of_cursor_atEnd : ∀ (t : Text), t.cursor.atEnd → parse t = none
 
 /-- Parse a single character. -/
-def charParser (char : Char) : Parser Char where
+def char (char : Char) : Parser Char where
   parse := fun text => do
     let ⟨content, cursor⟩ := text
     if cursor.atEnd then none
@@ -73,12 +73,35 @@ def charParser (char : Char) : Parser Char where
       simp [h]
 
 /-- Parse a single digit character `0-9`. -/
-def digitParser : Parser Char where
+def digit : Parser Char where
   parse := fun text => do
     let ⟨content, cursor⟩ := text
     if cursor.atEnd then none
     let c := content.get cursor.pos
     if !c.isDigit then none
+    some (c, text.next)
+  cursor_moves_forward := fun t a t' h =>
+    by
+      simp at h
+      -- Break down `h` into atomic props to make is available for `assumption`.
+      let ⟨_, _, _, _⟩ := h
+      have not_end: ¬t.cursor.atEnd := by
+        simp
+        assumption
+      have : t.next = t' := by
+        assumption
+      rw [←this]
+      exact Text.cursor_lt_next t not_end
+  none_of_cursor_atEnd := fun t h =>
+    by
+      simp [h]
+
+def nonZeroDigit : Parser Char where
+  parse := fun text => do
+    let ⟨content, cursor⟩ := text
+    if cursor.atEnd then none
+    let c := content.get cursor.pos
+    if !c.isDigit || c = '0' then none
     some (c, text.next)
   cursor_moves_forward := fun t a t' h =>
     by
@@ -236,5 +259,89 @@ def concat (p1 : Parser α) (p2 : Parser β) : Parser (α × β) where
     simp
     rw [p1.none_of_cursor_atEnd t h]
 
+infixl:65 " ++ " => concat
+
 -- #eval! (many digitParser).run (Text.mk "123c" "123c".iter)
 -- #eval! (many digitParser).run (Text.mk "c123" "c123".iter.toEnd)
+
+/-- Parser combinator that concatenates two parsers. The second parser can fail. -/
+def concatOpt (p1 : Parser α) (p2 : Parser β) : Parser (α × Option β) where
+  parse := fun t =>
+    match p1.parse t with
+    | some (a, t') =>
+      match p2.parse t' with
+      | some (b, t'') => some ((a, some b), t'')
+      | none => some ((a, none), t')
+    | none => none
+  cursor_moves_forward := by
+    intro t prod t'' h
+    match hp1 : p1.parse t with
+    | some (a2, t') =>
+      match hp2 : p2.parse t' with
+      | some (b2, t2'') =>
+        let ⟨a, b⟩ := prod
+        simp [hp1, hp2] at h
+        rw [h.left.left] at hp1
+        rw [h.right] at hp2
+        have lt1: t''.cursor < t'.cursor := by
+          exact p2.cursor_moves_forward t' b2 t'' hp2
+        have lt2: t'.cursor < t.cursor := by
+          exact p1.cursor_moves_forward t a t' hp1
+        exact iter_lt_trans lt1 lt2
+      | none =>
+        simp [hp1, hp2] at h
+        rw [←h.right]
+        exact p1.cursor_moves_forward t a2 t' hp1
+    | none =>
+      simp [hp1] at h
+  none_of_cursor_atEnd := by
+    intro t h
+    simp
+    rw [p1.none_of_cursor_atEnd t h]
+
+def map {α β} (f : α → β) (parser : Parser α) : Parser β where
+  parse := fun t => do
+    let ⟨a, t'⟩ ← parser.parse t
+    some (f a, t')
+  cursor_moves_forward := by
+    intro t a t' h
+    match hp : parser.parse t with
+    | some (a2, t2) =>
+      simp [hp] at h
+      rw [h.right] at hp
+      exact parser.cursor_moves_forward t a2 t' hp
+    | none =>
+      simp [hp] at h
+  none_of_cursor_atEnd := by
+    intro t h
+    simp
+    rw [parser.none_of_cursor_atEnd t h]
+    simp
+
+-- Parsers
+
+/--
+ Convert a string of digits to a natural number.
+ e.g. "123" -> 123
+-/
+def toNat (chars : Char × Option (List Char)) : Nat :=
+  let ⟨head, rest⟩ := chars
+  let headNat := head.toNat - '0'.toNat
+  match rest with
+  | some digits => digits.foldl (fun acc c => acc * 10 + (c.toNat - '0'.toNat)) headNat
+  | none => headNat
+
+/--
+ Parse a natural number.
+-/
+def number : Parser Nat := map toNat (concatOpt nonZeroDigit (many digit))
+
+def mulHead : Parser Unit := map (fun _ => ()) (char 'm' ++ char 'u' ++ char 'l' ++ char '(')
+
+def mulRaw : Parser ((((Unit × Nat) × Char) × Nat) × Char) := mulHead ++ number ++ char ',' ++ number ++ char ')'
+
+/--
+ Parse a pair of natural numbers.
+ e.g. "mul(2,4)" -> (2, 4)
+-/
+def mul : Parser (Nat × Nat) := map (fun ((((_, a), _), b), _) => (a, b)) mulRaw

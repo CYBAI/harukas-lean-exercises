@@ -34,6 +34,9 @@ structure Text where
 def Text.next (text : Text) : Text :=
   { text with cursor := text.cursor.next }
 
+def Text.from (content : String) : Text :=
+  { content := content, cursor := content.iter }
+
 theorem String.Iterator.iter_lt_next (it : String.Iterator) (h : ¬it.atEnd = true) : it.next < it :=
   String.Iterator.sizeOf_next_lt_of_atEnd it h
 
@@ -47,6 +50,9 @@ structure Parser (α : Type) where
   cursor_moves_forward : ∀ (t : Text) (a : α) (t' : Text), parse t = some (a, t') → t'.cursor < t.cursor
   /-- If the cursor is at the end, the parser should return none. -/
   none_of_cursor_atEnd : ∀ (t : Text), t.cursor.atEnd → parse t = none
+
+example {α : Type} (parser : Parser α) : parser.parse { content := "", cursor := "".iter } = none := by
+  exact parser.none_of_cursor_atEnd { content := "", cursor := "".iter } rfl
 
 /-- Parse a single character. -/
 def char (char : Char) : Parser Char where
@@ -72,6 +78,10 @@ def char (char : Char) : Parser Char where
     by
       simp [h]
 
+example : let text := Text.from "a"
+  (char 'a').parse text
+   = some ('a', text.next) := by rfl
+
 /-- Parse a single digit character `0-9`. -/
 def digit : Parser Char where
   parse := fun text => do
@@ -96,6 +106,10 @@ def digit : Parser Char where
     by
       simp [h]
 
+example :
+  let text := Text.from "1"
+  digit.parse text = some ('1', text.next) := by rfl
+
 def nonZeroDigit : Parser Char where
   parse := fun text => do
     let ⟨content, cursor⟩ := text
@@ -118,8 +132,6 @@ def nonZeroDigit : Parser Char where
   none_of_cursor_atEnd := fun t h =>
     by
       simp [h]
-
--- #eval digitParser.run (Text.mk "123" "123".iter)
 
 def manyRun (parser : Parser α) (t : Text) : Option (List α × Text) :=
   -- Somehow `decreasing_by` doesn't recognize how `rest` is constructed when using `match`.
@@ -260,9 +272,6 @@ def concat (p1 : Parser α) (p2 : Parser β) : Parser (α × β) where
     rw [p1.none_of_cursor_atEnd t h]
 
 infixl:65 " ++ " => concat
-
--- #eval! (many digitParser).run (Text.mk "123c" "123c".iter)
--- #eval! (many digitParser).run (Text.mk "c123" "c123".iter.toEnd)
 
 /-- Parser combinator that concatenates two parsers. The second parser can fail. -/
 def concatOpt (p1 : Parser α) (p2 : Parser β) : Parser (α × Option β) where

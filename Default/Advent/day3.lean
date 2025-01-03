@@ -1,5 +1,3 @@
-import Mathlib.Tactic.ByContra
-
 -- valid pattern: mul(2,4)
 
 -- Input
@@ -198,7 +196,7 @@ def manyRun (parser : Parser α) (t : Text) : Option (List α × Text) := do
 
 #eval! manyRun digit (Text.from "123,4")
 
-theorem manyRunAux_cursor_moves_forward_weak (n : ℕ) : ∀ (parser : Parser α) (l : List α) (t : Text) (l' : List α) (t' : Text) (_ : sizeOf t.cursor = n),
+theorem manyRunAux_cursor_moves_forward_weak (n : Nat) : ∀ (parser : Parser α) (l : List α) (t : Text) (l' : List α) (t' : Text) (_ : sizeOf t.cursor = n),
   manyRunAux parser l t = (l', t') → t'.cursor ≤ t.cursor :=
   Nat.strongRecOn n fun n ih parser l t l' t' hn h => by
     match hp : parser.parse t with
@@ -230,7 +228,7 @@ theorem manyRunAux_cursor_moves_forward_weak (n : ℕ) : ∀ (parser : Parser α
       rw [this]
       exact iter_le_of_eq rfl
 
-theorem many_cursor_moves_foward_n (n : ℕ) : ∀ (t : Text) (l : List α) (t' : Text) (_ : sizeOf t.cursor = n),
+theorem many_cursor_moves_foward_n (n : Nat) : ∀ (t : Text) (l : List α) (t' : Text) (_ : sizeOf t.cursor = n),
   manyRun parser t = some (l, t') → t'.cursor < t.cursor := by
     intro t l t' _ h
     match hp : parser.parse t with

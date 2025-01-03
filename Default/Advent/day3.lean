@@ -50,18 +50,17 @@ structure Parser (α : Type) where
 
 /-- Parse a single character. -/
 def charParser (char : Char) : Parser Char where
-  parse := fun text =>
+  parse := fun text => do
     let ⟨content, cursor⟩ := text
+    if cursor.atEnd then none
     let c := content.get cursor.pos
-    if ¬cursor.atEnd ∧ c = char then
-      some (c, text.next)
-    else
-      none
+    if c != char then none
+    some (c, text.next)
   cursor_moves_forward := fun t a t' h =>
     by
       simp at h
       -- Break down `h` into atomic props to make is available for `assumption`.
-      let ⟨⟨_, _⟩, _, _⟩ := h
+      let ⟨_, _, _, _⟩ := h
       have not_end: ¬t.cursor.atEnd := by
         simp
         assumption

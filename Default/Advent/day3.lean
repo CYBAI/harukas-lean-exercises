@@ -1,4 +1,4 @@
--- Question
+-- Part 1
 -- For a given input, find valid patterns and extract the values from them.
 -- The valid pattern is `mul(a,b)` where `a` and `b` are natural numbers.
 -- Example input:
@@ -193,6 +193,16 @@ example :
   let text := Text.mkFrom "a"
   any.parse text = some ((), text.next) := by rfl
 
+/-- Always fail. -/
+def fail : Parser Unit where
+  parse := fun _ => none
+  cursor_moves_forward := fun _ _ _ h =>
+    by
+      simp at h
+  none_of_cursor_atEnd := fun _ _ =>
+    by
+      simp
+
 -- Parser combinators
 
 namespace Many
@@ -320,7 +330,7 @@ def concat (p1 : Parser α) (p2 : Parser β) : Parser (α × β) where
     simp
     rw [p1.none_of_cursor_atEnd t h]
 
--- Defines right-associative infix operator "++" for `concat`.
+-- Defines left-associative infix operator "++" for `concat`.
 infixl:65 " ++ " => concat
 
 /-- Parser combinator that concatenates two parsers. The second parser can fail. -/
@@ -359,7 +369,7 @@ def concatOpt (p1 : Parser α) (p2 : Parser β) : Parser (α × Option β) where
     rw [p1.none_of_cursor_atEnd t h]
 
 /-- Parser combinator that runs the first parser and if it fails, runs the second parser. -/
-def fallback (p1 : Parser α) (p2 : Parser β) : Parser (Sum α β) where
+def alternative (p1 : Parser α) (p2 : Parser β) : Parser (α ⊕ β) where
   parse := fun t =>
     match p1.parse t with
     | some (a, t') => some (Sum.inl a, t')
@@ -389,8 +399,11 @@ def fallback (p1 : Parser α) (p2 : Parser β) : Parser (Sum α β) where
     simp
     rw [p2.none_of_cursor_atEnd t h]
 
+-- Defines left-associative infix operator "<|>" for `alternative`.
+infixl:60 " <|> " => alternative
+
 example : let text := Text.mkFrom "b"
-  (fallback (char 'a') (char 'b')).parse text = some (Sum.inr 'b', text.next) := by rfl
+  (alternative (char 'a') (char 'b')).parse text = some (Sum.inr 'b', text.next) := by rfl
 
 def map {α β} (f : α → β) (parser : Parser α) : Parser β where
   parse := fun t => do
@@ -446,13 +459,13 @@ def mul : Parser (Nat × Nat) := map (fun ((((_, a), _), b), _) => (a, b)) mulRa
 
 -- #eval mul.parse (Text.from "mul(2,4)")
 
-def mulRepeat := many (fallback mul any)
+def mulRepeat := many (mul <|> any)
 
-def part1: IO Nat := do
+def part1 : IO Nat := do
   let input ← read_input
   let text := Text.mkFrom input
-  if let some (muls, _) := mulRepeat.parse text then
-    let m : List (Nat × Nat) := muls.filterMap fun
+  if let some (tokens, _) := mulRepeat.parse text then
+    let m : List (Nat × Nat) := tokens.filterMap fun
       | Sum.inl mul => some mul
       | Sum.inr _ => none
     let prodSum : Nat := m.foldl (fun acc (a, b) => acc + a * b) 0
@@ -460,4 +473,47 @@ def part1: IO Nat := do
   else
     return 0
 
-#eval part1
+-- 184511516
+-- #eval part1
+
+-- Part 2
+-- There are two new instructions you'll need to handle:
+-- * The do() instruction enables future mul instructions.
+-- * The don't() instruction disables future mul instructions.
+-- Only the most recent do() or don't() instruction applies. At the beginning of the program, mul instructions are enabled.
+
+inductive MulEnabled
+  | mk
+
+inductive MulDisabled
+  | mk
+
+structure TokenAccumulator where
+  enabled : Bool
+  prodSum : Nat
+
+def doStmt : Parser MulEnabled := map (fun _ => MulEnabled.mk) (char 'd' ++ char 'o' ++ char '(' ++ char ')')
+
+def dontStmt : Parser MulDisabled := map (fun _ => MulDisabled.mk) (char 'd' ++ char 'o' ++ char 'n' ++ char '\'' ++ char 't' ++ char '(' ++ char ')')
+
+def part2Parser := many (((mul <|> doStmt) <|> dontStmt) <|> any)
+
+def part2 : IO Nat := do
+  let input ← read_input
+  let text := Text.mkFrom input
+  if let some (tokens, _) := part2Parser.parse text then
+    let acc : TokenAccumulator := tokens.foldl fun acc token =>
+      match token with
+        | Sum.inl (Sum.inl (Sum.inl mul)) => match acc.enabled with
+          | true => { acc with prodSum := acc.prodSum + mul.fst * mul.snd }
+          | false => acc
+        | Sum.inl (Sum.inl (Sum.inr _)) => { acc with enabled := true }
+        | Sum.inl (Sum.inr _) => { acc with enabled := false }
+        | Sum.inr _ => acc
+      (TokenAccumulator.mk true 0)
+    return acc.prodSum
+  else
+    return 0
+
+-- 90044227
+-- #eval part2

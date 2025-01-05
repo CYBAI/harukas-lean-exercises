@@ -22,35 +22,35 @@ instance : LT String.Iterator where
 namespace String.Iterator
 
   /-- An iterator is at the end if its size is zero. -/
-  theorem atEnd_of_sizeOf_zero (it : String.Iterator) (h : sizeOf it = 0) : it.atEnd := by
+  theorem atEnd_of_sizeOf_zero (it : Iterator) (h : sizeOf it = 0) : it.atEnd := by
     apply Classical.not_not.mp
     intro h_not_end
-    have : sizeOf it.next < sizeOf it := String.Iterator.sizeOf_next_lt_of_atEnd it h_not_end
+    have : sizeOf it.next < sizeOf it := sizeOf_next_lt_of_atEnd it h_not_end
     rw [h] at this
     exact Nat.not_succ_le_zero (sizeOf it.next) this
 
-  theorem le_trans {it1 it2 it3 : String.Iterator}
+  theorem le_trans {it1 it2 it3 : Iterator}
       (h1 : it1 ≤ it2) (h2 : it2 ≤ it3) : it1 ≤ it3 :=
     Nat.le_trans h1 h2
 
-  theorem lt_trans {it1 it2 it3 : String.Iterator}
+  theorem lt_trans {it1 it2 it3 : Iterator}
       (h1 : it1 < it2) (h2 : it2 < it3) : it1 < it3 :=
     Nat.lt_trans h1 h2
 
-  theorem lt_of_le_of_lt {it1 it2 it3 : String.Iterator}
+  theorem lt_of_le_of_lt {it1 it2 it3 : Iterator}
       (h1 : it1 ≤ it2) (h2 : it2 < it3) : it1 < it3 :=
     Nat.lt_of_le_of_lt h1 h2
 
-  theorem le_of_eq {it1 it2 : String.Iterator}
+  theorem le_of_eq {it1 it2 : Iterator}
       (h : it1 = it2) : it1 ≤ it2 :=
     Nat.le_of_eq (congrArg sizeOf h)
 
-  theorem le_of_lt {it1 it2 : String.Iterator}
+  theorem le_of_lt {it1 it2 : Iterator}
       (h : it1 < it2) : it1 ≤ it2 :=
     Nat.le_of_lt h
 
-  theorem next_lt (it : String.Iterator) (h : ¬it.atEnd = true) : it.next < it :=
-    String.Iterator.sizeOf_next_lt_of_atEnd it h
+  theorem next_lt (it : Iterator) (h : ¬it.atEnd = true) : it.next < it :=
+    sizeOf_next_lt_of_atEnd it h
 
 end String.Iterator
 
@@ -427,6 +427,46 @@ def map {α β} (f : α → β) (parser : Parser α) : Parser β where
 example : let text := Text.mkFrom "a"
   (map (fun c => c.toString) (char 'a')).parse text = some ("a", text.next) := by rfl
 
+def NonEmptyString := { s : String // s ≠ "" }
+def NonEmptyList (α : Type) := { l : List α // l ≠ [] }
+
+def NonEmptyString.toNonEmptyList (s : NonEmptyString) : NonEmptyList Char :=
+  ⟨s.val.toList, by
+    intro h
+    unfold String.toList at h
+    have : s.val = "" := by
+      exact String.ext h
+    let ⟨_, _⟩ := s
+    contradiction
+  ⟩
+
+def NonEmptyList.foldl1 (f : α → α → α) (l : NonEmptyList α) : α :=
+  let ⟨x :: xs, _⟩ := l
+  List.foldl f x xs
+
+def unit {α : Type} : α → Unit := fun _ => ()
+
+def charUnit (c : Char) : Parser Unit := map unit (char c)
+
+def concatL (l : NonEmptyList (Parser Unit)) : Parser Unit :=
+  l.foldl1 (fun p1 p2 => map unit (p1 ++ p2))
+
+/--
+ Parse a non-empty string.
+-/
+def str (s : NonEmptyString) : Parser Unit :=
+  let ⟨val, h⟩ := s.toNonEmptyList
+  let parsers : NonEmptyList (Parser Unit) := ⟨val.map charUnit, by
+    intro h
+    have : val = [] := by
+      exact List.map_eq_nil_iff.mp h
+    contradiction
+  ⟩
+  concatL parsers
+
+example : let text := Text.mkFrom "abc"
+  (str ⟨"abc", (by decide)⟩).parse text = some ((), text.next.next.next) := by rfl
+
 -- Main parsers
 
 /--
@@ -446,7 +486,7 @@ def toNat (chars : Char × Option (List Char)) : Nat :=
 def number : Parser Nat := map toNat (concatOpt nonZeroDigit (many digit))
 
 /-- Parse "mul(". -/
-def mulHead : Parser Unit := map (fun _ => ()) (char 'm' ++ char 'u' ++ char 'l' ++ char '(')
+def mulHead : Parser Unit := str ⟨"mul(", (by decide)⟩
 
 /-- Parse "mul(a,b)" where `a` and `b` are natural numbers. -/
 def mulRaw : Parser ((((Unit × Nat) × Char) × Nat) × Char) := mulHead ++ number ++ char ',' ++ number ++ char ')'
@@ -492,9 +532,9 @@ structure TokenAccumulator where
   enabled : Bool
   prodSum : Nat
 
-def doStmt : Parser MulEnabled := map (fun _ => MulEnabled.mk) (char 'd' ++ char 'o' ++ char '(' ++ char ')')
+def doStmt : Parser MulEnabled := map (fun _ => MulEnabled.mk) (str ⟨"do()", (by decide)⟩)
 
-def dontStmt : Parser MulDisabled := map (fun _ => MulDisabled.mk) (char 'd' ++ char 'o' ++ char 'n' ++ char '\'' ++ char 't' ++ char '(' ++ char ')')
+def dontStmt : Parser MulDisabled := map (fun _ => MulDisabled.mk) (str ⟨"don't()", (by decide)⟩)
 
 def part2Parser := many (((mul <|> doStmt) <|> dontStmt) <|> any)
 

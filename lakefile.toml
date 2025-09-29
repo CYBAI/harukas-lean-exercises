@@ -1,0 +1,10 @@
+name = "default"
+# add package configuration options here
+
+[[require]]
+name = "mathlib"
+git = "https://github.com/leanprover-community/mathlib4.git"
+
+[[lean_exe]]
+name = "default"
+root = "Main"
